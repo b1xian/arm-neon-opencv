@@ -1,0 +1,1 @@
+**a few operators of opencv implement by arm neon**

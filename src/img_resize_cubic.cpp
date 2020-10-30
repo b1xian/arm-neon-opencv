@@ -15,7 +15,7 @@
 
 #include "paddle-resize/cubic_resize_float16.cpp"
 #include "paddle-resize/cubic_resize_float32.cpp"
-#include "paddle-resize/cubic_resize_naive.cpp"
+#include "paddle-resize/cubic_resize_naive_chw.cpp"
 #include "neon_normalize/layout_change.cpp"
 
 using namespace std;
@@ -25,15 +25,15 @@ int main() {
     int h = matSrc.rows;
     int w = matSrc.cols;
     int c = matSrc.channels();
-    int dst_h = (int) h / 0.8;
-    int dst_w = (int) w / 0.8;
+    int dst_h = h/0.8;
+    int dst_w = w/0.8;
     cv::Mat matDst1(dst_h, dst_w, CV_8UC(c));
     cv::Mat matDst2(dst_h, dst_w, CV_8UC(c));
     cv::Mat matDst3(dst_h, dst_w, CV_8UC(c));
 
     clock_t start_time = clock();
     cv::resize(matSrc, matDst1, matDst1.size(), 0, 0, CV_INTER_CUBIC);
-    std::cout << "opencv_bicubic_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
+    std::cout << "out: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
     cv::imwrite("output/opencv_bicubic_face.jpg", matDst1);
 
     start_time = clock();
@@ -46,29 +46,28 @@ int main() {
     matSrc.convertTo(mat_src_fp32, CV_32FC3);
 
     // float32 bicubic
-    start_time = clock();
 
     vision::Tensor tensor = vision::TensorConverter::convert_from<cv::Mat>(mat_src_fp32, true);
-//    tensor = tensor.change_layout(vision::DLayout::NCHW);
-
+/*
     float* chw_data_fp32 = (float*)malloc(sizeof(float) * dst_h*dst_w*c);
     hwc_2_chw_neon_fp32((float*)tensor.data, chw_data_fp32, w, h, c);
 
-//    float* fp32_data = (float*)tensor.data;
     float* dst_data_fp32_chw = (float*)malloc(sizeof(float) * dst_h*dst_w*c);
 //    du_resize_bicubic(fp32_data, w, h, dst_data_fp32, dst_w, dst_h);
-    du_resize_bicubic_naive(chw_data_fp32, w, h, dst_data_fp32_chw, dst_w, dst_h);
-
-//    vision::Tensor resize_tensor(dst_w, dst_h, c, vision::DLayout::NHWC, vision::DType::FP32);
-//    resize_tensor.data = dst_data_fp32_hwc;
+    du_chw_resize_bicubic_naive(chw_data_fp32, w, h, dst_data_fp32_chw, dst_w, dst_h);
 
     vision::Tensor resize_tensor(dst_w, dst_h, c, vision::DLayout::NCHW, vision::DType::FP32);
     resize_tensor.data = dst_data_fp32_chw;
-//    resize_tensor = resize_tensor.change_layout(vision::DLayout::NHWC);
     float* dst_data_fp32_hwc = (float*)malloc(sizeof(float) * dst_h*dst_w*c);
     chw_2_hwc_neon_fp32((float*)resize_tensor.data, dst_data_fp32_hwc, dst_w, dst_h, c);
-    resize_tensor.data = dst_data_fp32_hwc;
+    resize_tensor.data = dst_data_fp32_hwc;*/
 
+
+    start_time = clock();
+    float* dst_data_fp32_hwc = (float*)malloc(sizeof(float) * dst_h*dst_w*c);
+    du_hwc_resize_bicubic_naive((float*)tensor.data, w, h, dst_data_fp32_hwc, dst_w, dst_h);
+    vision::Tensor resize_tensor(dst_w, dst_h, c, vision::DLayout::NHWC, vision::DType::FP32);
+    resize_tensor.data = dst_data_fp32_hwc;
     std::cout << "naive_fp32_bicubic_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
 
 

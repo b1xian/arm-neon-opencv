@@ -98,7 +98,7 @@ static void du_cubic_coeffs_naive(int w, int outw, int *xofs, float *alpha)
     }
 }
 
-static void du_resize_bicubic_image_naive(float* src, int srcw, int srch, float* dst, int outw, int outh,
+static void du_resize_bicubic_image_one_channel_naive(float* src, int srcw, int srch, float* dst, int outw, int outh,
                                           float* alpha, int* xofs, float* beta, int* yofs)
 {
     int w = outw;
@@ -274,7 +274,7 @@ static void du_resize_bicubic_image_naive(float* src, int srcw, int srch, float*
     }
 }
 
-static void du_resize_bicubic_naive(float* src, int srcw, int srch, float* dst, int outw, int outh) {
+static void du_chw_resize_bicubic_naive(float* src, int srcw, int srch, float* dst, int outw, int outh) {
     int* buf = new int[outw + outh + outw * 4 + outh * 4];
 
     int* xofs = buf;        //new int[outw];
@@ -286,15 +286,219 @@ static void du_resize_bicubic_naive(float* src, int srcw, int srch, float* dst, 
     du_cubic_coeffs_naive(srcw, outw, xofs, alpha);
     du_cubic_coeffs_naive(srch, outh, yofs, beta);
 
+
     int dst_stride = outw * outh;
     int src_stride = srcw * srch;
+    // TODO 可以使用多线程并行执行三通道
+    #pragma omp parallel for
     for (int i = 0; i < 3; i++) {
         float* src_channel_data = src + src_stride * i;
         float* dst_channel_data = dst + dst_stride * i;
-
-        du_resize_bicubic_image_naive(src_channel_data, srcw, srch, dst_channel_data, outw, outh, alpha, xofs, beta, yofs);
+        du_resize_bicubic_image_one_channel_naive(src_channel_data, srcw, srch, dst_channel_data, outw, outh, alpha, xofs, beta, yofs);
     }
 
     delete[] buf;
 }
+static void du_resize_bicubic_image_naive_three_channel(float* src, int srcw, int srch, float* dst, int outw, int outh,
+                                                        float* alpha, int* xofs, float* beta, int* yofs)
+{
+    int w = outw;
+    int h = outh;
 
+    // loop body
+    // 每次操作一行
+    float* rowsbuf0 = (float*)malloc(sizeof(float) * w * 4 * 3);
+    float* rowsbuf1 = (float*)malloc(sizeof(float) * w * 4 * 3);
+    float* rowsbuf2 = (float*)malloc(sizeof(float) * w * 4 * 3);
+    float* rowsbuf3 = (float*)malloc(sizeof(float) * w * 4 * 3);
+    float* rows0 = rowsbuf0;
+    float* rows1 = rowsbuf1;
+    float* rows2 = rowsbuf2;
+    float* rows3 = rowsbuf3;
+
+    int prev_sy1 = -3;
+
+    for (int dy = 0; dy < h; dy++) {
+        int sy = yofs[dy];
+
+        if (sy == prev_sy1) {
+            // reuse all rows
+        } else if (sy == prev_sy1 + 1) {
+            // hresize one row
+            float* rows0_old = rows0;
+            rows0 = rows1;
+            rows1 = rows2;
+            rows2 = rows3;
+            rows3 = rows0_old;
+            float* S3 = src + (sy+2)*srcw*3;
+
+            const float* alphap = alpha;
+            float* rows3p = rows3;
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx];
+                const float* S3p = S3 + sx*3;
+
+                float a0 = alphap[0];
+                float a1 = alphap[1];
+                float a2 = alphap[2];
+                float a3 = alphap[3];
+
+                for (int i = 0; i < 3; i++){
+                    rows3p[dx*3 +i] = S3p[-1*3+i] * a0 + S3p[0*3+i] * a1 + S3p[1*3+i] * a2 + S3p[2*3+i] * a3;
+                }
+
+                alphap += 4;
+            }
+        } else if (sy == prev_sy1 + 2) {
+            // hresize two rows
+            float* rows0_old = rows0;
+            float* rows1_old = rows1;
+            rows0 = rows2;
+            rows1 = rows3;
+            rows2 = rows0_old;
+            rows3 = rows1_old;
+            float* S2 = src + (sy+1)*srcw * 3;
+            float* S3 = src + (sy+2)*srcw * 3;
+
+            const float* alphap = alpha;
+            float* rows2p = rows2;
+            float* rows3p = rows3;
+            for (int dx = 0; dx < w; dx++) {
+                int sx = xofs[dx];
+                const float* S2p = S2 + sx*3;
+                const float* S3p = S3 + sx*3;
+
+                float a0 = alphap[0];
+                float a1 = alphap[1];
+                float a2 = alphap[2];
+                float a3 = alphap[3];
+
+                for (int i = 0; i < 3; i++){
+                    rows2p[dx*3 +i] = S2p[-1*3+i] * a0 + S2p[0*3+i] * a1 + S2p[1*3+i] * a2 + S2p[2*3+i] * a3;
+                    rows3p[dx*3 +i] = S3p[-1*3+i] * a0 + S3p[0*3+i] * a1 + S3p[1*3+i] * a2 + S3p[2*3+i] * a3;
+                }
+
+
+                alphap += 4;
+            }
+        } else if (sy == prev_sy1 + 3) {
+            // hresize three rows
+            float* rows0_old = rows0;
+            float* rows1_old = rows1;
+            float* rows2_old = rows2;
+            rows0 = rows3;
+            rows1 = rows0_old;
+            rows2 = rows1_old;
+            rows3 = rows2_old;
+            float* S1 = src + (sy)*srcw * 3;
+            float* S2 = src + (sy+1)*srcw * 3;
+            float* S3 = src + (sy+2)*srcw * 3;
+
+            const float* alphap = alpha;
+            float* rows1p = rows1;
+            float* rows2p = rows2;
+            float* rows3p = rows3;
+            for (int dx = 0; dx < w; dx++) {
+                int sx = xofs[dx];
+                const float* S1p = S1 + sx*3;
+                const float* S2p = S2 + sx*3;
+                const float* S3p = S3 + sx*3;
+
+                float a0 = alphap[0];
+                float a1 = alphap[1];
+                float a2 = alphap[2];
+                float a3 = alphap[3];
+
+                for (int i = 0; i < 3; i++){
+                    rows1p[dx*3 +i] = S1p[-1*3+i] * a0 + S1p[0*3+i] * a1 + S1p[1*3+i] * a2 + S1p[2*3+i] * a3;
+                    rows2p[dx*3 +i] = S2p[-1*3+i] * a0 + S2p[0*3+i] * a1 + S2p[1*3+i] * a2 + S2p[2*3+i] * a3;
+                    rows3p[dx*3 +i] = S3p[-1*3+i] * a0 + S3p[0*3+i] * a1 + S3p[1*3+i] * a2 + S3p[2*3+i] * a3;
+                }
+
+                alphap += 4;
+            }
+        } else {
+            // hresize four rows
+            float* S0 = src + (sy-1)*srcw * 3;
+            float* S1 = src + (sy)*srcw * 3;
+            float* S2 = src + (sy+1)*srcw * 3;
+            float* S3 = src + (sy+2)*srcw * 3;
+
+            const float* alphap = alpha;
+            float* rows0p = rows0;
+            float* rows1p = rows1;
+            float* rows2p = rows2;
+            float* rows3p = rows3;
+            for (int dx = 0; dx < w; dx++) {
+                int sx = xofs[dx];
+                const float* S0p = S0 + sx*3;
+                const float* S1p = S1 + sx*3;
+                const float* S2p = S2 + sx*3;
+                const float* S3p = S3 + sx*3;
+
+                float a0 = alphap[0];
+                float a1 = alphap[1];
+                float a2 = alphap[2];
+                float a3 = alphap[3];
+                for (int i = 0; i < 3; i++){
+                    rows0p[dx*3 +i] = S0p[-1*3+i] * a0 + S0p[0*3+i] * a1 + S0p[1*3+i] * a2 + S0p[2*3+i] * a3;
+                    rows1p[dx*3 +i] = S1p[-1*3+i] * a0 + S1p[0*3+i] * a1 + S1p[1*3+i] * a2 + S1p[2*3+i] * a3;
+                    rows2p[dx*3 +i] = S2p[-1*3+i] * a0 + S2p[0*3+i] * a1 + S2p[1*3+i] * a2 + S2p[2*3+i] * a3;
+                    rows3p[dx*3 +i] = S3p[-1*3+i] * a0 + S3p[0*3+i] * a1 + S3p[1*3+i] * a2 + S3p[2*3+i] * a3;
+                }
+
+                alphap += 4;
+            }
+        }
+
+        prev_sy1 = sy;
+
+        // vresize
+        float b0 = beta[0];
+        float b1 = beta[1];
+        float b2 = beta[2];
+        float b3 = beta[3];
+
+        float* rows0p = rows0;
+        float* rows1p = rows1;
+        float* rows2p = rows2;
+        float* rows3p = rows3;
+        float* Dp = dst + dy*w*3;
+        for (int dx = 0; dx < w; dx++) {
+            //             D[x] = rows0[x]*b0 + rows1[x]*b1 + rows2[x]*b2 + rows3[x]*b3;
+//            *Dp++ = *rows0p++ * b0 + *rows1p++ * b1 + *rows2p++ * b2 + *rows3p++ * b3;
+            // b
+            *(Dp) = *rows0p * b0 + *rows1p * b1 + *rows2p * b2 + *rows3p * b3;
+            // g
+            *(Dp+1) = *(rows0p+1) * b0 + *(rows1p+1) * b1 + *(rows2p+1) * b2 + *(rows3p+1) * b3;
+            // r
+            *(Dp+2) = *(rows0p+2) * b0 + *(rows1p+2) * b1 + *(rows2p+2) * b2 + *(rows3p+2) * b3;
+
+            Dp+=3;
+            rows0p+=3;
+            rows1p+=3;
+            rows2p+=3;
+            rows3p+=3;
+        }
+
+        beta += 4;
+    }
+}
+
+static void du_hwc_resize_bicubic_naive(float* src, int srcw, int srch, float* dst, int outw, int outh) {
+    int* buf = new int[outw + outh + outw * 4 + outh * 4];
+
+    int* xofs = buf;        //new int[outw];
+    int* yofs = buf + outw; //new int[outh];
+
+    float* alpha = (float*)(buf + outw + outh);           //new float[outw * 4];
+    float* beta = (float*)(buf + outw + outh + outw * 4); //new float[outh * 4];
+
+    du_cubic_coeffs_naive(srcw, outw, xofs, alpha);
+    du_cubic_coeffs_naive(srch, outh, yofs, beta);
+
+    du_resize_bicubic_image_naive_three_channel(src, srcw, srch, dst, outw, outh, alpha, xofs, beta, yofs);
+
+    delete[] buf;
+}

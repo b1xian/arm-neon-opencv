@@ -74,15 +74,15 @@ void resize_naive(cv::Mat& matSrc, cv::Mat& matDst) {
 
 
 int main() {
-    cv::Mat matSrc = cv::imread("res/lakers.jpeg");
+    cv::Mat matSrc = cv::imread("res/lakers.jpeg", 0);
     int h = matSrc.rows;
     int w = matSrc.cols;
     int c = matSrc.channels();
-    int dst_h = (int) h / 3;
-    int dst_w = (int) w / 3;
-    cv::Mat matDst1(dst_h, dst_w, CV_8UC3);
-    cv::Mat matDst2(dst_h, dst_w, CV_8UC3);
-    cv::Mat matDst3(dst_h, dst_w, CV_8UC3);
+    int dst_h = (int) h / 2.7;
+    int dst_w = (int) w / 2.7;
+    cv::Mat matDst1(dst_h, dst_w, CV_8UC(c));
+    cv::Mat matDst2(dst_h, dst_w, CV_8UC(c));
+    cv::Mat matDst3(dst_h, dst_w, CV_8UC(c));
 
     clock_t start_time = clock();
     resize_naive(matSrc, matDst1);
@@ -98,7 +98,7 @@ int main() {
     ImageResize* is = new ImageResize();
     is->choose((uint8_t*) matSrc.data,
                (uint8_t*) matDst3.data,
-               ImageFormat::BGR,
+               ImageFormat::GRAY,
                w, h,
                dst_w, dst_h);
     std::cout << "paddle_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;

@@ -7,7 +7,7 @@
 
 #include <time.h>
 
-void rgb_deinterleave_c(uint8_t* r, uint8_t* g, uint8_t* b, uint8_t* rgb, int len_color) {
+static void rgb_deinterleave_c(uint8_t* r, uint8_t* g, uint8_t* b, uint8_t* rgb, int len_color) {
     /*
      * Take the elements of "rgb" and store the individual colors "r", "g", and "b".
      */
@@ -18,7 +18,7 @@ void rgb_deinterleave_c(uint8_t* r, uint8_t* g, uint8_t* b, uint8_t* rgb, int le
     }
 }
 
-void rgb_deinterleave_neon(uint8_t *r, uint8_t *g, uint8_t *b, uint8_t *rgb, int len_color) {
+static void rgb_deinterleave_neon(uint8_t *r, uint8_t *g, uint8_t *b, uint8_t *rgb, int len_color) {
     /*
      * Take the elements of "rgb" and store the individual colors "r", "g", and "b"
      */

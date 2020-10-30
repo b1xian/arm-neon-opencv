@@ -64,11 +64,13 @@ void crop_neon_hwc(vision::Tensor& src_tensor, vision::Tensor& crop_tensor, VACV
     uint8x16x3_t intlv_rgb;
     uint8x16_t intlv_grey;
 
-    int crop_row_num8x16 = rect.width / count;
-    int remain = rect.width % count;
-    if (remain != 0) {
-        crop_row_num8x16 += 1;
-    }
+//    int crop_row_num8x16 = rect.width / count;
+//    int remain = rect.width % count;
+//    if (remain != 0) {
+//        crop_row_num8x16 += 1;
+//    }
+    int crop_row_num8x16 = (int(rect.width) % count) != 0 ? (rect.width/count+1) : rect.width/count;
+
     int src_offset;
     int dst_offset;
     for (int i = 0; i < rect.height; i++) {
@@ -100,22 +102,20 @@ void print_hwc_tensor(vision::Tensor& tensor) {
 
 
 int main() {
-    cv::Mat img = cv::imread("./lakers.jpeg", 0);
+    cv::Mat img = cv::imread("res/lakers.jpeg", 1);
 
     int rect_left   = 800;
     int rect_top    = 700;
-    int rect_height = 670;
+    int rect_height = 300;
     int rect_width  = 321;
 
-    cv::Mat crop;
+//    cv::Mat crop;
     clock_t start_time = clock();
-    crop = img(cv::Rect(rect_left, rect_top, rect_width, rect_height)).clone();
+//    crop = img(cv::Rect(rect_left, rect_top, rect_width, rect_height)).clone();
     clock_t end_time = clock();
-    std::cout << "cv_cost: " << (double)(end_time - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-    cv::imwrite("./cv_crop.jpg", crop);
-    vision::Tensor cv_tensor = vision::TensorConverter::convert_from<cv::Mat>(crop);
-//    cout << "cv_tensor:" << endl;
-//    print_hwc_tensor(cv_tensor);
+//    std::cout << "cv_cost: " << (double)(end_time - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
+//    cv::imwrite("output/cv_crop.jpg", crop);
+//    vision::Tensor cv_tensor = vision::TensorConverter::convert_from<cv::Mat>(crop);
 
 
     vision::Tensor tensor = vision::TensorConverter::convert_from<cv::Mat>(img);
@@ -132,7 +132,7 @@ int main() {
 //    cout << "neon_tensor:" << endl;
 //    print_hwc_tensor(crop_tensor);
     cv::Mat neon_crop(rect.height, rect.width, CV_8UC(crop_tensor.c), crop_tensor.data);
-    cv::imwrite("./neon_crop.jpg", neon_crop);
+    cv::imwrite("output/neon_crop.jpg", neon_crop);
 
     return 0;
 }

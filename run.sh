@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 
-cd cmake-build-debug
+mkdir build
+cd build
+
 cmake   -DANDROID_ABI=arm64-v8a \
         -DTARGET_OS=android \
         -DTARGET_ARCH=arm64-v8a \
         -DCMAKE_CXX_FLAGS="-std=c++11 -frtti -fexceptions" \
         -DANDROID_PLATFORM=android-23 \
-        -DCMAKE_TOOLCHAIN_FILE=/Users/v_guojinlong/Desktop/developer/ndk17/android-ndk-r17/build/cmake/android.toolchain.cmake \
+        -DCMAKE_TOOLCHAIN_FILE=/Users/v_guojinlong/Desktop/developer/android-ndk-r19c/build/cmake/android.toolchain.cmake \
         -DANDROID_ARM_NEON=ON \
         ..
 make

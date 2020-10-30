@@ -293,8 +293,23 @@ void resize_three_channel(const uint8_t* src,
   delete[] rowsbuf0;
   delete[] rowsbuf1;
 }
+
 void resize_one_channel(
     const uint8_t* src, int w_in, int h_in, uint8_t* dst, int w_out, int h_out);
+
+void gray_resize(const uint8_t* src,
+                 uint8_t* dst,
+                 int w_in,
+                 int h_in,
+                 int w_out,
+                 int h_out) {
+    if (w_out == w_in && h_out == h_in) {
+        memcpy(dst, src, sizeof(uint8_t) * w_in * h_in);
+        return;
+    }
+    // y
+    resize_one_channel(src, w_in, h_in, dst, w_out, h_out);
+}
 void resize_one_channel_uv(
     const uint8_t* src, int w_in, int h_in, uint8_t* dst, int w_out, int h_out);
 void nv21_resize(const uint8_t* src,
@@ -328,6 +343,7 @@ void resize_one_channel(const uint8_t* src,
                         uint8_t* dst,
                         int w_out,
                         int h_out) {
+    std::cout << "resize_one_channel" << std::endl;
   const int resize_coef_bits = 11;
   const int resize_coef_scale = 1 << resize_coef_bits;
 
@@ -738,6 +754,9 @@ void resize(const uint8_t* src,
   int orih = dsth;
   if (srcFormat == GRAY) {
     num = 1;
+//    gray_resize(src, dst, srcw, srch, dstw, dsth);
+    resize_one_channel(src, srcw, srch, dst, dstw, dsth);
+    return;
   } else if (srcFormat == NV12 || srcFormat == NV21) {
     nv21_resize(src, dst, srcw, srch, dstw, dsth);
     return;

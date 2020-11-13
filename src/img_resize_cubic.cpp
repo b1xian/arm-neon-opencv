@@ -21,7 +21,7 @@
 using namespace std;
 
 int main() {
-    cv::Mat matSrc = cv::imread("res/face.jpg", 1);
+    cv::Mat matSrc = cv::imread("res/face1280720.jpg", 1);
     int h = matSrc.rows;
     int w = matSrc.cols;
     int c = matSrc.channels();

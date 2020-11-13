@@ -18,7 +18,7 @@ using namespace cv;
 using namespace vision;
 
 int main() {
-    Mat src_mat = imread("res/lakers.jpeg");
+    Mat src_mat = imread("res/lakers25601440.jpeg");
     int h = src_mat.rows;
     int w = src_mat.cols;
     int c = src_mat.channels();
@@ -85,7 +85,7 @@ int main() {
 
 
 int main1() {
-    Mat src_mat = imread("res/lakers.jpeg");
+    Mat src_mat = imread("res/lakers25601440.jpeg");
     clock_t start_time = clock();
     std::vector<Mat> bgr_mats;
     cv::split(src_mat, bgr_mats);

@@ -4,7 +4,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 if __name__ == '__main__':
-    src = cv2.imread('res/lakers.jpeg')
+    src = cv2.imread('res/lakers25601440.jpeg')
     paddle = cv2.imread('output/paddlelite_bgr_from_nv21_neon.jpg')
     our = cv2.imread('output/our_bgr_from_nv21_neon.jpg')
 

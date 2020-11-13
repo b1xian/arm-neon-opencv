@@ -26,7 +26,7 @@ using namespace vision;
 int main() {
 
 
-    Mat src_mat = imread("res/lakers.jpeg", 0);
+    Mat src_mat = imread("res/lakers25601440.jpeg", 0);
     int h = src_mat.rows;
     int w = src_mat.cols;
     int c = src_mat.channels();
@@ -188,7 +188,7 @@ int main1()
     Mat srcImage, warp_dstImage, warp_rotate_dstImage, rotate_dstImage;
 
     //加载图像
-    srcImage = imread("res/lakers.jpeg");
+    srcImage = imread("res/lakers25601440.jpeg");
 
     //创建仿射变换目标图像与原图像尺寸类型相同
     warp_dstImage = Mat::zeros(srcImage.rows, srcImage.cols, srcImage.type());

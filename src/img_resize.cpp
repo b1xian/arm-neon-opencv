@@ -74,7 +74,7 @@ void resize_naive(cv::Mat& matSrc, cv::Mat& matDst) {
 
 
 int main() {
-    cv::Mat matSrc = cv::imread("res/lakers.jpeg", 0);
+    cv::Mat matSrc = cv::imread("res/lakers25601440.jpeg", 0);
     int h = matSrc.rows;
     int w = matSrc.cols;
     int c = matSrc.channels();

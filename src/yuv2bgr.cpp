@@ -642,7 +642,7 @@ void bgr2nv21(unsigned char *src, unsigned char *dst, int width, int height) {
 
 
 int main() {
-    cv::Mat img = cv::imread("res/lakers.jpeg");
+    cv::Mat img = cv::imread("res/akiyo_qcif.jpg");
 
     int h = img.rows;
     int w = img.cols;
@@ -660,7 +660,7 @@ int main() {
     clock_t start_time = clock();
     cv::cvtColor(yuv_img, opencv_bgr_img, CV_YUV2BGR_I420);
     std::cout << "opencv_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-    cv::imwrite("output/opencv_bgr_from_YUV_NV21.jpg", opencv_bgr_img);
+    cv::imwrite("output/yuv_nv21_to_bgr_opencv.jpg", opencv_bgr_img);
 
     // paddle yuv_nv21 to bgr
     uint8_t* paddle_bgr_nv21_mem = (uint8_t*)malloc(w*h*c*sizeof(uint8_t));
@@ -671,7 +671,7 @@ int main() {
 
     cv::Mat paddle_bgr_from_nv21_neon_img(h, w, CV_8UC3);
     memcpy(paddle_bgr_from_nv21_neon_img.data, (unsigned char*)paddle_bgr_nv21_mem, w*h*3*sizeof(unsigned char));
-    cv::imwrite("output/paddlelite_bgr_from_nv21_neon.jpg", paddle_bgr_from_nv21_neon_img);
+    cv::imwrite("output/yuv_nv21_to_bgr_neon.jpg", paddle_bgr_from_nv21_neon_img);
 
 
     unsigned char* our_bgr_nv21_mem = (unsigned char*)malloc(w*h*c*sizeof(unsigned char));
@@ -680,7 +680,7 @@ int main() {
     std::cout << "our_neon_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
     cv::Mat our_bgr_neon_nv21_img(h, w, CV_8UC3);
     memcpy(our_bgr_neon_nv21_img.data, our_bgr_nv21_mem, w*h*c*sizeof(unsigned char));
-    cv::imwrite("output/our_bgr_from_nv21_neon.jpg", our_bgr_neon_nv21_img);
+    cv::imwrite("output/yuv_nv21_to_bgr_neon_ours.jpg", our_bgr_neon_nv21_img);
 
 
     return 0;

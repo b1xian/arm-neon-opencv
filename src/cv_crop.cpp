@@ -105,7 +105,7 @@ void print_chw_tensor(vision::Tensor& tensor) {
 
 int main() {
 //    cv::Mat img = cv::imread("./create.jpg", 1);
-    cv::Mat img = cv::imread("./lakers.jpeg", 1);
+    cv::Mat img = cv::imread("./lakers25601440.jpeg", 1);
     cout << img.cols <<endl;
     cout << img.rows <<endl;
     cout << img.channels() <<endl;
@@ -153,7 +153,7 @@ int main() {
 
 int main() {
 //    cv::Mat img = cv::imread("./create.jpg", 1);
-    cv::Mat img = cv::imread("./lakers.jpeg", 1);
+    cv::Mat img = cv::imread("./lakers25601440.jpeg", 1);
     cout << img.cols <<endl;
     cout << img.rows <<endl;
     cout << img.channels() <<endl;

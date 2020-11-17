@@ -38,13 +38,22 @@ static void hwc_2_chw_neon_u8(uint8_t *src_data, uint8_t *dst_data, int w, int h
         return;
     }
 
-    int num8x16 = (stride % 16 == 0) ? (stride / 16) : (stride / 16 + 1);
+    int num8x16 = int(stride / 16);
+    int remain = stride % 16;
     uint8x16x3_t intlv_rgb;
-    for (int i=0; i < num8x16; i++) {
-        intlv_rgb = vld3q_u8(src_data+3*16*i);
-        vst1q_u8(dst_data+16*i, intlv_rgb.val[0]);
-        vst1q_u8(dst_data+stride+16*i, intlv_rgb.val[1]);
-        vst1q_u8(dst_data+stride*2+16*i, intlv_rgb.val[2]);
+    int i = 0;
+    for (i = 0; i < num8x16; i++) {
+        intlv_rgb = vld3q_u8(src_data + 3 * 16 * i);
+        vst1q_u8(dst_data + 16 * i, intlv_rgb.val[0]);
+        vst1q_u8(dst_data + stride + 16 * i, intlv_rgb.val[1]);
+        vst1q_u8(dst_data + stride * 2 + 16 * i, intlv_rgb.val[2]);
+    }
+    if (remain > 0) {
+        for (int j = 0; j < remain; j++) {
+            *(dst_data + 16 * i + j) = *(src_data + 3 * 16 * i + j * 3);
+            *(dst_data + stride + 16 * i + j) = *(src_data+ 3 * 16 * i + j * 3 + 1);
+            *(dst_data + stride * 2 + 16 * i + j) = *(src_data + 3 * 16 * i + j * 3 + 2);
+        }
     }
 }
 
@@ -55,19 +64,28 @@ static void chw_2_hwc_neon_u8(uint8_t *src_data, uint8_t *dst_data, int w, int h
         return;
     }
 
-    int num8x16 = (stride % 16 == 0) ? (stride / 16) : (stride / 16 + 1);
+    int num8x16 = stride / 16;
+    int remain = stride % 16;
     uint8x16x3_t intlv_rgb;
     uint8x16_t intlv_b;
     uint8x16_t intlv_g;
     uint8x16_t intlv_r;
-    for (int i=0; i < num8x16; i++) {
-        intlv_b = vld1q_u8(src_data+16*i);
-        intlv_g = vld1q_u8(src_data+stride+16*i);
-        intlv_r = vld1q_u8(src_data+stride*2+16*i);
+    int i = 0;
+    for (i = 0; i < num8x16; i++) {
+        intlv_b = vld1q_u8(src_data + 16 * i);
+        intlv_g = vld1q_u8(src_data + stride + 16 * i);
+        intlv_r = vld1q_u8(src_data + stride * 2 + 16 * i);
         intlv_rgb.val[0] = intlv_b;
         intlv_rgb.val[1] = intlv_g;
         intlv_rgb.val[2] = intlv_r;
-        vst3q_u8(dst_data + 3*16*i, intlv_rgb);
+        vst3q_u8(dst_data +  3 * 16 * i, intlv_rgb);
+    }
+    if (remain > 0) {
+        for (int j = 0; j < remain; j++) {
+            *(dst_data + 3 * 16 * i + j * 3) = *(src_data + 16 * i + j);
+            *(dst_data + 3 * 16 * i + j * 3 + 1) = *(src_data + stride + 16 * i + j);
+            *(dst_data + 3 * 16 * i + j * 3 + 2) = *(src_data + stride * 2 + 16 * i + j);
+        }
     }
 }
 
@@ -78,13 +96,22 @@ static void hwc_2_chw_neon_fp32(float *src_data, float *dst_data, int w, int h, 
         return;
     }
 
-    int num32x4 = (stride % 4 == 0) ? (stride / 4) : (stride / 4 + 1);
+    int num32x4 = stride / 4;
+    int remain = stride % 4;
     float32x4x3_t fp32lv_rgb;
-    for (int i=0; i < num32x4; i++) {
-        fp32lv_rgb = vld3q_f32(src_data+3*4*i);
-        vst1q_f32(dst_data + 4*i, fp32lv_rgb.val[0]);
-        vst1q_f32(dst_data + stride + 4*i, fp32lv_rgb.val[1]);
-        vst1q_f32(dst_data + stride*2 + 4*i, fp32lv_rgb.val[2]);
+    int i = 0;
+    for (i = 0; i < num32x4; i++) {
+        fp32lv_rgb = vld3q_f32(src_data + 3 * 4 * i);
+        vst1q_f32(dst_data + 4 * i, fp32lv_rgb.val[0]);
+        vst1q_f32(dst_data + stride + 4 * i, fp32lv_rgb.val[1]);
+        vst1q_f32(dst_data + stride * 2 + 4 * i, fp32lv_rgb.val[2]);
+    }
+    if (remain > 0) {
+        for (int j = 0; j < remain; j++) {
+            *(dst_data + 4 * i + j) = *(src_data + 3 * 4 * i + j * 3);
+            *(dst_data + stride + 4 * i + j) = *(src_data+ 3 * 4 * i + j * 3 + 1);
+            *(dst_data + stride * 2 + 4 * i + j) = *(src_data + 3 * 4 * i + j * 3 + 2);
+        }
     }
 }
 
@@ -95,19 +122,28 @@ static void chw_2_hwc_neon_fp32(float *src_data, float *dst_data, int w, int h, 
         return;
     }
 
-    int num32x4 = (stride % 4 == 0) ? (stride / 4) : (stride / 4 + 1);
+    int num32x4 = stride / 4;
+    int remain = stride % 4;
     float32x4x3_t intlv_rgb;
     float32x4_t intlv_b;
     float32x4_t intlv_g;
     float32x4_t intlv_r;
-    for (int i=0; i < num32x4; i++) {
-        intlv_b = vld1q_f32(src_data+4*i);
-        intlv_g = vld1q_f32(src_data+stride+4*i);
-        intlv_r = vld1q_f32(src_data+stride*2+4*i);
+    int i = 0;
+    for (i = 0; i < num32x4; i++) {
+        intlv_b = vld1q_f32(src_data + 4 * i);
+        intlv_g = vld1q_f32(src_data + stride + 4 * i);
+        intlv_r = vld1q_f32(src_data + stride * 2 + 4 * i);
         intlv_rgb.val[0] = intlv_b;
         intlv_rgb.val[1] = intlv_g;
         intlv_rgb.val[2] = intlv_r;
-        vst3q_f32(dst_data + 3*4*i, intlv_rgb);
+        vst3q_f32(dst_data + 3 * 4 * i, intlv_rgb);
+    }
+    if (remain > 0) {
+        for (int j = 0; j < remain; j++) {
+            *(dst_data + 3 * 4 * i + j * 3) = *(src_data + 4 * i + j);
+            *(dst_data + 3 * 4 * i + j * 3 + 1) = *(src_data + stride + 4 * i + j);
+            *(dst_data + 3 * 4 * i + j * 3 + 2) = *(src_data + stride * 2 + 4 * i + j);
+        }
     }
 }
 

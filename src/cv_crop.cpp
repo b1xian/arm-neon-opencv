@@ -269,7 +269,7 @@ static void crop_neon_chw(const vision::Tensor& src, vision::Tensor& dst, const 
 
 
 int main() {
-    cv::Mat img = cv::imread("res/lakers25601440.jpeg", 1);
+    cv::Mat img = cv::imread("res/lakers25601440.jpeg", 0);
 
     int rect_left   = 1900;
     int rect_top    = 500;

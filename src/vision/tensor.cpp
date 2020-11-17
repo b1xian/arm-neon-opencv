@@ -1,6 +1,9 @@
 #include "tensor.h"
 #include "va_allocator.h"
 
+#include "arm_neon.h"
+#include <iostream>
+
 namespace vision {
 
 #if defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
@@ -178,6 +181,219 @@ void chw_to_hwc(T* in, T* out, int w, int h, int c) {
     }
 }
 
+#if defined (__ARM_NEON)
+void hwc_2_chw_neon_u8(uint8_t *src_data, uint8_t *dst_data, int w, int h, int c) {
+    int stride = w * h;
+    if (c == 1){
+        memcpy(dst_data, src_data, stride);
+        return;
+    }
+
+    int num8x16 = int(stride / 16);
+    int remain = stride % 16;
+    uint8x16x3_t intlv_rgb;
+    int i = 0;
+    for (i = 0; i < num8x16; i++) {
+        intlv_rgb = vld3q_u8(src_data + 3 * 16 * i);
+        vst1q_u8(dst_data + 16 * i, intlv_rgb.val[0]);
+        vst1q_u8(dst_data + stride + 16 * i, intlv_rgb.val[1]);
+        vst1q_u8(dst_data + stride * 2 + 16 * i, intlv_rgb.val[2]);
+    }
+    if (remain > 0) {
+        for (int j = 0; j < remain; j++) {
+            *(dst_data + 16 * i + j) = *(src_data + 3 * 16 * i + j * 3);
+            *(dst_data + stride + 16 * i + j) = *(src_data+ 3 * 16 * i + j * 3 + 1);
+            *(dst_data + stride * 2 + 16 * i + j) = *(src_data + 3 * 16 * i + j * 3 + 2);
+        }
+    }
+}
+
+void chw_2_hwc_neon_u8(uint8_t *src_data, uint8_t *dst_data, int w, int h, int c) {
+    int stride = w * h;
+    if (c == 1){
+        memcpy(dst_data, src_data, stride);
+        return;
+    }
+
+    int num8x16 = stride / 16;
+    int remain = stride % 16;
+    uint8x16x3_t intlv_rgb;
+    uint8x16_t intlv_b;
+    uint8x16_t intlv_g;
+    uint8x16_t intlv_r;
+    int i = 0;
+    for (i = 0; i < num8x16; i++) {
+        intlv_b = vld1q_u8(src_data + 16 * i);
+        intlv_g = vld1q_u8(src_data + stride + 16 * i);
+        intlv_r = vld1q_u8(src_data + stride * 2 + 16 * i);
+        intlv_rgb.val[0] = intlv_b;
+        intlv_rgb.val[1] = intlv_g;
+        intlv_rgb.val[2] = intlv_r;
+        vst3q_u8(dst_data +  3 * 16 * i, intlv_rgb);
+    }
+    if (remain > 0) {
+        for (int j = 0; j < remain; j++) {
+            *(dst_data + 3 * 16 * i + j * 3) = *(src_data + 16 * i + j);
+            *(dst_data + 3 * 16 * i + j * 3 + 1) = *(src_data + stride + 16 * i + j);
+            *(dst_data + 3 * 16 * i + j * 3 + 2) = *(src_data + stride * 2 + 16 * i + j);
+        }
+    }
+}
+
+void hwc_2_chw_neon_fp32(float *src_data, float *dst_data, int w, int h, int c) {
+    int stride = w * h;
+    if (c == 1){
+        memcpy(dst_data, src_data, stride);
+        return;
+    }
+
+    int num32x4 = stride / 4;
+    int remain = stride % 4;
+    float32x4x3_t fp32lv_rgb;
+    int i = 0;
+    for (i = 0; i < num32x4; i++) {
+        fp32lv_rgb = vld3q_f32(src_data + 3 * 4 * i);
+        vst1q_f32(dst_data + 4 * i, fp32lv_rgb.val[0]);
+        vst1q_f32(dst_data + stride + 4 * i, fp32lv_rgb.val[1]);
+        vst1q_f32(dst_data + stride * 2 + 4 * i, fp32lv_rgb.val[2]);
+    }
+    if (remain > 0) {
+        for (int j = 0; j < remain; j++) {
+            *(dst_data + 4 * i + j) = *(src_data + 3 * 4 * i + j * 3);
+            *(dst_data + stride + 4 * i + j) = *(src_data+ 3 * 4 * i + j * 3 + 1);
+            *(dst_data + stride * 2 + 4 * i + j) = *(src_data + 3 * 4 * i + j * 3 + 2);
+        }
+    }
+}
+
+void chw_2_hwc_neon_fp32(float *src_data, float *dst_data, int w, int h, int c) {
+    int stride = w * h;
+    if (c == 1){
+        memcpy(dst_data, src_data, stride);
+        return;
+    }
+
+    int num32x4 = stride / 4;
+    int remain = stride % 4;
+    float32x4x3_t intlv_rgb;
+    float32x4_t intlv_b;
+    float32x4_t intlv_g;
+    float32x4_t intlv_r;
+    int i = 0;
+    for (i = 0; i < num32x4; i++) {
+        intlv_b = vld1q_f32(src_data + 4 * i);
+        intlv_g = vld1q_f32(src_data + stride + 4 * i);
+        intlv_r = vld1q_f32(src_data + stride * 2 + 4 * i);
+        intlv_rgb.val[0] = intlv_b;
+        intlv_rgb.val[1] = intlv_g;
+        intlv_rgb.val[2] = intlv_r;
+        vst3q_f32(dst_data + 3 * 4 * i, intlv_rgb);
+    }
+    if (remain > 0) {
+        for (int j = 0; j < remain; j++) {
+            *(dst_data + 3 * 4 * i + j * 3) = *(src_data + 4 * i + j);
+            *(dst_data + 3 * 4 * i + j * 3 + 1) = *(src_data + stride + 4 * i + j);
+            *(dst_data + 3 * 4 * i + j * 3 + 2) = *(src_data + stride * 2 + 4 * i + j);
+        }
+    }
+}
+
+void u8_2_f32_neon(uint8_t* src, float* dst, int len) {
+    int num8x16 = len / 16;
+    int remain = len % 16;
+
+    uint8x16_t uint8X16;
+    uint8x8_t uint8X8_low;
+    uint8x8_t uint8X8_high;
+    uint16x8_t uint16X8_low;
+    uint16x4_t uint16X4_low;
+    uint32x4_t uint32X4_low;
+    float32x4_t float32X4_low;
+    uint16x4_t uint16X4_high;
+    uint32x4_t uint32X4_high;
+    float32x4_t float32X4_high;
+
+    int i = 0;
+    for (i = 0; i < num8x16; i++) {
+        // 取16个像素
+        uint8x16_t uint8X16 = vld1q_u8(src + i * 16);
+        uint8x8_t uint8X8_low = vget_low_u8(uint8X16);
+
+        uint16X8_low = vmovl_u8(uint8X8_low);
+        uint16X4_low = vget_low_u16(uint16X8_low);
+        uint32X4_low = vmovl_u16(uint16X4_low);
+        float32X4_low = vcvtq_f32_u32(uint32X4_low);
+        uint16X4_high = vget_high_u16(uint16X8_low);
+        uint32X4_high = vmovl_u16(uint16X4_high);
+        float32X4_high = vcvtq_f32_u32(uint32X4_high);
+
+        vst1q_f32(dst + i * 16, float32X4_low);
+        vst1q_f32(dst + i * 16 + 4, float32X4_high);
+
+        uint8X8_high = vget_high_u8(uint8X16);
+        uint16X8_low = vmovl_u8(uint8X8_high);
+        uint16X4_low = vget_low_u16(uint16X8_low);
+        uint32X4_low = vmovl_u16(uint16X4_low);
+        float32X4_low = vcvtq_f32_u32(uint32X4_low);
+        uint16X4_high = vget_high_u16(uint16X8_low);
+        uint32X4_high = vmovl_u16(uint16X4_high);
+        float32X4_high = vcvtq_f32_u32(uint32X4_high);
+
+        vst1q_f32(dst + i * 16 + 8, float32X4_low);
+        vst1q_f32(dst + i * 16 + 12, float32X4_high);
+    }
+
+    if (remain > 0) {
+        for (int j = 0; j < remain; j++) {
+            *(dst + i * 16 + j) = static_cast<float>(*(src + i * 16 + j));
+        }
+    }
+}
+
+void f32_2_u8_neon(float* src, uint8_t* dst, int len) {
+    int num8x16 = len / 16;
+    int remain = len % 16;
+
+    int i = 0;
+    for (i = 0; i < num8x16; i++) {
+        // 取16个像素
+        float32x4_t fp32x4_0 = vld1q_f32(src + i*16);
+        float32x4_t fp32x4_1 = vld1q_f32(src + i*16 + 4);
+        float32x4_t fp32x4_2 = vld1q_f32(src + i*16 + 8);
+        float32x4_t fp32x4_3 = vld1q_f32(src + i*16 + 12);
+
+        // float32->uint32
+        uint32x4_t u32x4_0 = vcvtq_u32_f32(fp32x4_0);
+        uint32x4_t u32x4_1 = vcvtq_u32_f32(fp32x4_1);
+        uint32x4_t u32x4_2 = vcvtq_u32_f32(fp32x4_2);
+        uint32x4_t u32x4_3 = vcvtq_u32_f32(fp32x4_3);
+
+        // u32->u16
+        uint16x4_t u16x4_0 = vmovn_u32(u32x4_0);
+        uint16x4_t u16x4_1 = vmovn_u32(u32x4_1);
+        uint16x4_t u16x4_2 = vmovn_u32(u32x4_2);
+        uint16x4_t u16x4_3 = vmovn_u32(u32x4_3);
+
+        // u16 combine
+        uint16x8_t u16x8_0 = vcombine_u16(u16x4_0, u16x4_1);
+        uint16x8_t u16x8_1 = vcombine_u16(u16x4_2, u16x4_3);
+
+        // u16->u8
+        uint8x8_t u8x8_0 = vmovn_u16(u16x8_0);
+        uint8x8_t u8x8_1 = vmovn_u16(u16x8_1);
+
+        uint8x16_t u8x16 = vcombine_u8(u8x8_0, u8x8_1);
+        vst1q_u8(dst + i * 16, u8x16);
+    }
+
+    if (remain > 0) {
+        for (int j = 0; j < remain; j++) {
+            *(dst + i * 16 + j) = static_cast<uint8_t>(*(src + i * 16 + j));
+        }
+    }
+}
+#endif
+
 Tensor Tensor::change_layout(DLayout _layout) {
     if (empty()) {
         return Tensor();
@@ -193,19 +409,51 @@ Tensor Tensor::change_layout(DLayout _layout) {
     // todo: accelerate
     if (layout == NHWC && _layout == NCHW) {
         if (dtype == FP32) {
+#if defined (__ARM_NEON)
+            if (c == 3) {
+            hwc_2_chw_neon_fp32((float*)data, (float*)t.data, w, h, c);
+        } else {
             hwc_to_chw<float>((float*)data, (float*)t.data, w, h, c);
+        }
+#else
+            hwc_to_chw<float>((float*)data, (float*)t.data, w, h, c);
+#endif
         } else if (dtype == FP16) {
             hwc_to_chw<short>((short*)data, (short*)t.data, w, h, c);
         } else if (dtype == INT8) {
+#if defined (__ARM_NEON)
+            if (c == 3) {
+            hwc_2_chw_neon_u8((uint8_t*)data, (uint8_t*)t.data, w, h, c);
+        } else {
             hwc_to_chw<char>((char*)data, (char*)t.data, w, h, c);
+        }
+#else
+            hwc_to_chw<char>((char*)data, (char*)t.data, w, h, c);
+#endif
         }
     } else if (layout == NCHW && _layout == NHWC) {
         if (dtype == FP32) {
+#if defined (__ARM_NEON)
+            if (c == 3) {
+            chw_2_hwc_neon_fp32((float*)data, (float*)t.data, w, h, c);
+        } else {
             chw_to_hwc<float>((float*)data, (float*)t.data, w, h, c);
+        }
+#else
+            chw_to_hwc<float>((float*)data, (float*)t.data, w, h, c);
+#endif
         } else if (dtype == FP16) {
             chw_to_hwc<short>((short*)data, (short*)t.data, w, h, c);
         } else if (dtype == INT8) {
+#if defined (__ARM_NEON)
+            if (c == 3) {
+            chw_2_hwc_neon_u8((uint8_t*)data, (uint8_t*)t.data, w, h, c);
+        } else {
             chw_to_hwc<char>((char*)data, (char*)t.data, w, h, c);
+        }
+#else
+            chw_to_hwc<char>((char*)data, (char*)t.data, w, h, c);
+#endif
         }
     }
 
@@ -227,17 +475,26 @@ Tensor Tensor::change_dtype(DType _dtype) {
     // copy date
     // todo: accelerate
     if (_dtype == FP32 && dtype == INT8) {
+#if defined (__ARM_NEON)
+    u8_2_f32_neon((uint8_t*)data, (float*)t.data, t.size());
+#else
         auto* dst_ptr = (float*)t.data;
         auto* src_ptr = (unsigned char*)data;
         for (int i = 0; i < (int)size(); ++i) {
             dst_ptr[i] = static_cast<float>(src_ptr[i]);
         }
+#endif
     } else if (_dtype == INT8 && dtype == FP32) {
+
+#if defined (__ARM_NEON)
+        f32_2_u8_neon((float*)data, (uint8_t*)t.data, t.size());
+#else
         auto* dst_ptr = (unsigned char*)t.data;
         auto* src_ptr = (float*)data;
         for (int i = 0; i < (int)size(); ++i) {
             dst_ptr[i] = static_cast<char>(src_ptr[i]);
         }
+#endif
     } else {
         // todo: support more conversions
 //        VLOGE(TAG, "Not supported yet to convert from dtype: %s to dtype: %s",

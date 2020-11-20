@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <time.h>
+#include <math.h>
 
 #include <arm_neon.h>
 #include "opencv2/opencv.hpp"
@@ -74,12 +75,12 @@ void resize_naive(cv::Mat& matSrc, cv::Mat& matDst) {
 
 
 int main() {
-    cv::Mat matSrc = cv::imread("res/lakers25601440.jpeg", 0);
+    cv::Mat matSrc = cv::imread("res/lakers25601440.jpeg", 1);
     int h = matSrc.rows;
     int w = matSrc.cols;
     int c = matSrc.channels();
-    int dst_h = (int) h / 2.7;
-    int dst_w = (int) w / 2.7;
+    int dst_h = (int) h / 2;
+    int dst_w = (int) w / 2;
     cv::Mat matDst1(dst_h, dst_w, CV_8UC(c));
     cv::Mat matDst2(dst_h, dst_w, CV_8UC(c));
     cv::Mat matDst3(dst_h, dst_w, CV_8UC(c));
@@ -87,22 +88,22 @@ int main() {
     clock_t start_time = clock();
     resize_naive(matSrc, matDst1);
     std::cout << "naive_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-    cv::imwrite("output/lakers_linear_our.jpg", matDst1);
+    cv::imwrite("output/resize_linear_naive.jpg", matDst1);
 
     start_time = clock();
     cv::resize(matSrc, matDst2, matDst1.size(), 0, 0, 1);
     std::cout << "opencv_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-    cv::imwrite("output/lakers_linear_opencv.jpg", matDst2);
+    cv::imwrite("output/resize_linear_opencv.jpg", matDst2);
 
     start_time = clock();
     ImageResize* is = new ImageResize();
     is->choose((uint8_t*) matSrc.data,
                (uint8_t*) matDst3.data,
-               ImageFormat::GRAY,
+               ImageFormat::RGB,
                w, h,
                dst_w, dst_h);
     std::cout << "paddle_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-    cv::imwrite("output/lakers_linear_paddle.jpg", matDst3);
+    cv::imwrite("output/resize_linear_neon.jpg", matDst3);
 
     return 0;
 }

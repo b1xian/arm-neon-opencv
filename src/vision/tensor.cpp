@@ -181,8 +181,8 @@ void chw_to_hwc(T* in, T* out, int w, int h, int c) {
     }
 }
 
-#if defined (__ARM_NEON)
-void hwc_2_chw_neon_u8(uint8_t *src_data, uint8_t *dst_data, int w, int h, int c) {
+//#if defined (__ARM_NEON)
+void hwc_2_chw_neon_u8(const uint8_t *src_data, uint8_t *dst_data, int w, int h, int c) {
     int stride = w * h;
     if (c == 1){
         memcpy(dst_data, src_data, stride);
@@ -208,7 +208,7 @@ void hwc_2_chw_neon_u8(uint8_t *src_data, uint8_t *dst_data, int w, int h, int c
     }
 }
 
-void chw_2_hwc_neon_u8(uint8_t *src_data, uint8_t *dst_data, int w, int h, int c) {
+void chw_2_hwc_neon_u8(const uint8_t *src_data, uint8_t *dst_data, int w, int h, int c) {
     int stride = w * h;
     if (c == 1){
         memcpy(dst_data, src_data, stride);
@@ -240,7 +240,7 @@ void chw_2_hwc_neon_u8(uint8_t *src_data, uint8_t *dst_data, int w, int h, int c
     }
 }
 
-void hwc_2_chw_neon_fp32(float *src_data, float *dst_data, int w, int h, int c) {
+void hwc_2_chw_neon_fp32(const float *src_data, float *dst_data, int w, int h, int c) {
     int stride = w * h;
     if (c == 1){
         memcpy(dst_data, src_data, stride);
@@ -266,7 +266,7 @@ void hwc_2_chw_neon_fp32(float *src_data, float *dst_data, int w, int h, int c) 
     }
 }
 
-void chw_2_hwc_neon_fp32(float *src_data, float *dst_data, int w, int h, int c) {
+void chw_2_hwc_neon_fp32(const float *src_data, float *dst_data, int w, int h, int c) {
     int stride = w * h;
     if (c == 1){
         memcpy(dst_data, src_data, stride);
@@ -298,7 +298,7 @@ void chw_2_hwc_neon_fp32(float *src_data, float *dst_data, int w, int h, int c) 
     }
 }
 
-void u8_2_f32_neon(uint8_t* src, float* dst, int len) {
+void u8_2_f32_neon(const uint8_t* src, float* dst, int len) {
     int num8x16 = len / 16;
     int remain = len % 16;
 
@@ -316,8 +316,8 @@ void u8_2_f32_neon(uint8_t* src, float* dst, int len) {
     int i = 0;
     for (i = 0; i < num8x16; i++) {
         // 取16个像素
-        uint8x16_t uint8X16 = vld1q_u8(src + i * 16);
-        uint8x8_t uint8X8_low = vget_low_u8(uint8X16);
+        uint8X16 = vld1q_u8(src + i * 16);
+        uint8X8_low = vget_low_u8(uint8X16);
 
         uint16X8_low = vmovl_u8(uint8X8_low);
         uint16X4_low = vget_low_u16(uint16X8_low);
@@ -350,7 +350,7 @@ void u8_2_f32_neon(uint8_t* src, float* dst, int len) {
     }
 }
 
-void f32_2_u8_neon(float* src, uint8_t* dst, int len) {
+void f32_2_u8_neon(const float* src, uint8_t* dst, int len) {
     int num8x16 = len / 16;
     int remain = len % 16;
 
@@ -392,7 +392,7 @@ void f32_2_u8_neon(float* src, uint8_t* dst, int len) {
         }
     }
 }
-#endif
+//#endif
 
 Tensor Tensor::change_layout(DLayout _layout) {
     if (empty()) {

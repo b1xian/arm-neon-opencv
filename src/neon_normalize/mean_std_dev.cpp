@@ -8,10 +8,9 @@
 /*
  * for bgr/rgb hwc layout
  */
-static void mean_std_dev_fp32_bgr_hwc(float* src, int w, int h, int c, float* mean, float* stddev) {
+static void mean_std_dev_fp32_bgr_hwc(const float* src, int stride, float* mean, float* stddev) {
 
     // 计算均值
-    int stride = w * h;
     float32_t b_sum_f32 = 0.0f;
     float32_t g_sum_f32 = 0.0f;
     float32_t r_sum_f32 = 0.0f;
@@ -79,9 +78,7 @@ static void mean_std_dev_fp32_bgr_hwc(float* src, int w, int h, int c, float* me
 /*
  *  for gray and bgr/rgb chw layout
  */
-static void mean_std_dev_fp32_bgr_chw(float* src, int w, int h, int c, float* mean, float* stddev) {
-
-    int stride = w * h;
+static void mean_std_dev_fp32_bgr_chw(float* src, int stride, int c, float* mean, float* stddev) {
 
     // 计算均值
     int num_32x4 = stride / 4;
@@ -123,9 +120,7 @@ static void mean_std_dev_fp32_bgr_chw(float* src, int w, int h, int c, float* me
 }
 
 
-static void normalize_fp32_bgr_hwc (float* src, float* dst, int w, int h, int c, float* mean, float* stddev) {
-
-    int stride = w * h;
+static void normalize_fp32_bgr_hwc (const float* src, float* dst, int stride, float* mean, float* stddev) {
 
     float32x4_t b_mean_float32x4 = vdupq_n_f32(mean[0]);
     float32x4_t g_mean_float32x4 = vdupq_n_f32(mean[1]);
@@ -162,10 +157,9 @@ static void normalize_fp32_bgr_hwc (float* src, float* dst, int w, int h, int c,
 }
 
 
-static void normalize_fp32_bgr_chw (float* src, float* dst, int w, int h, int c, float* mean, float* stddev) {
+static void normalize_fp32_bgr_chw (float* src, float* dst, int stride, int c, float* mean, float* stddev) {
 
     // TODO c == len(mean) && c == len(stddev)
-    int stride = w * h;
 
     int num_32x4 = stride / 4;
     int remain = stride % 4;

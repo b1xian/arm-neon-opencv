@@ -1,31 +1,13 @@
-//
-// Created by b1xian on 2020-11-11.
-//
-#include <arm_neon.h>
-#include <iostream>
+#include "warp_affine_naive.h"
+
 #include <math.h>
 
-#define SATURATE_CAST_SHORT(X)                                               \
-  (int16_t)::std::min(                                                       \
-      ::std::max(static_cast<int>(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), \
-      SHRT_MAX);
+#include "../common/macro.h"
 
-static void warp_affine_naive_hwc_u8(uint8_t* src,
-                                  int w_in,
-                                  int h_in,
-                                  int c,
-                                   uint8_t* dst,
-                                  int w_out,
-                                  int h_out,
-                                  float* m) {
-    double D = m[0]*m[4] - m[1]*m[3];
-    D = D != 0 ? 1./D : 0;
-    double A11 = m[4]*D, A22 = m[0]*D;
-    m[0] = A11; m[1] *= -D;
-    m[3] *= -D; m[4] = A22;
-    double b1 = -m[0]*m[2] - m[1]*m[5];
-    double b2 = -m[3]*m[2] - m[4]*m[5];
-    m[2] = b1; m[5] = b2;
+namespace va_cv {
+
+void WarpAffineNaive::warp_affine_naive_hwc_u8(char* src, int w_in, int h_in, int c,
+                                               char* dst, int w_out, int h_out, float* m) {
 
     int resize_coef_scale = 2048;
 
@@ -33,15 +15,15 @@ static void warp_affine_naive_hwc_u8(uint8_t* src,
     float fy = 0.f;
     int sx = 0;
     int sy = 0;
-    int16_t cbufy[2];
-    int16_t cbufx[2];
+    short cbufy[2];
+    short cbufx[2];
 
     for (int dy = 0; dy < h_out; dy++) {
         for (int dx = 0; dx < w_out; dx++) {
-            fx = static_cast<float>(m[0]*dx + m[1]*dy + m[2]);
-            fy = static_cast<float>(m[3]*dx + m[4]*dy + m[5]);
+            fx = static_cast<float>(m[0] * dx + m[1] * dy + m[2]);
+            fy = static_cast<float>(m[3] * dx + m[4] * dy + m[5]);
 
-            sy  = floor(fy);
+            sy = floor(fy);
             fy -= sy;
             if (sy < 0 || sy >= (h_in - 1)) {
                 continue;
@@ -75,23 +57,8 @@ static void warp_affine_naive_hwc_u8(uint8_t* src,
     }
 }
 
-// todo
-static void warp_affine_naive_chw_channel_uf32(float* src,
-                                  int w_in,
-                                  int h_in,
-                                  int c,
-                                  float* dst,
-                                  int w_out,
-                                  int h_out,
-                                  float* m) {
-    double D = m[0]*m[4] - m[1]*m[3];
-    D = D != 0 ? 1./D : 0;
-    double A11 = m[4]*D, A22 = m[0]*D;
-    m[0] = A11; m[1] *= -D;
-    m[3] *= -D; m[4] = A22;
-    double b1 = -m[0]*m[2] - m[1]*m[5];
-    double b2 = -m[3]*m[2] - m[4]*m[5];
-    m[2] = b1; m[5] = b2;
+void WarpAffineNaive::warp_affine_naive_hwc_fp32(float* src, int w_in, int h_in, int c,
+                                                float* dst, int w_out, int h_out, float* m) {
 
     float fx = 0.f;
     float fy = 0.f;
@@ -102,10 +69,9 @@ static void warp_affine_naive_chw_channel_uf32(float* src,
 
     for (int dy = 0; dy < h_out; dy++) {
         for (int dx = 0; dx < w_out; dx++) {
-            fx = static_cast<float>(m[0]*dx + m[1]*dy + m[2]);
-            fy = static_cast<float>(m[3]*dx + m[4]*dy + m[5]);
-
-            sy  = floor(fy);
+            fx = static_cast<float>(m[0] * dx + m[1] * dy + m[2]);
+            fy = static_cast<float>(m[3] * dx + m[4] * dy + m[5]);
+            sy = floor(fy);
             fy -= sy;
             if (sy < 0 || sy >= (h_in - 1)) {
                 continue;
@@ -130,11 +96,13 @@ static void warp_affine_naive_chw_channel_uf32(float* src,
 
             for (int k = 0; k < c; k++) {
                 *(dst + dst_ofs + k) =
-                        *(src + lt_ofs + k) * cbufx[0] * cbufy[0] +
+                         *(src + lt_ofs + k) * cbufx[0] * cbufy[0] +
                          *(src + lb_ofs + k) * cbufx[0] * cbufy[1] +
                          *(src + rt_ofs + k) * cbufx[1] * cbufy[0] +
                          *(src + rb_ofs + k) * cbufx[1] * cbufy[1];
             }
         }
     }
+}
+
 }

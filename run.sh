@@ -12,16 +12,29 @@ cmake   -DANDROID_ABI=arm64-v8a \
         -DANDROID_ARM_NEON=ON \
         ..
 make
+make install
 
-bin_path="/data/local/tmp/test_neon"
+cd ..
 
-adb shell "mkdir ${bin_path}"
-adb shell "rm -r ${bin_path}/output"
-adb shell "mkdir ${bin_path}/output"
+DEMO_BIN=./build/vacv_test
 
-adb push test_neon ${bin_path}
-adb push ../res ${bin_path}
+adb shell "rm -r /data/local/tmp/vacv_test"
+adb push $DEMO_BIN /data/local/tmp/
+bin_path="/data/local/tmp/vacv_test"
+adb shell "chmod +x ${bin_path}/va_cv_ut"
+adb shell "cd ${bin_path} \
+       && export LD_LIBRARY_PATH=${bin_path}:${LD_LIBRARY_PATH} \
+       && ./va_cv_ut"
 
-adb shell "cd ${bin_path} && ./test_neon"
-
-adb pull ${bin_path}/output ../
+#bin_path="/data/local/tmp/test_neon"
+#
+#adb shell "mkdir ${bin_path}"
+#adb shell "rm -r ${bin_path}/output"
+#adb shell "mkdir ${bin_path}/output"
+#
+#adb push test_neon ${bin_path}
+#adb push ../res ${bin_path}
+#
+#adb shell "cd ${bin_path} && ./test_neon"
+#
+#adb pull ${bin_path}/output ../

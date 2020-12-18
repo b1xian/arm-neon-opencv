@@ -9,11 +9,110 @@
 #include "opencv2/opencv.hpp"
 #include <opencv2/core/core.hpp>
 
-#include "vision/tensor.h"
-#include "vision/tensor_converter.h"
+#include "../vision/common/tensor.h"
+#include "../vision/common/tensor_converter.h"
 
 
 using namespace std;
+
+void nv_to_bgr_naive(const unsigned char* src,
+                       unsigned char* dst,
+                       int srcw,
+                       int srch,
+                       int x_num,
+                       int y_num) {
+    std::cout << "naive" << std::endl;
+    // nv21 x = 0, y = 1
+    // nv12 x = 1, y = 0
+    int y_h = srch;
+    int wout = srcw * 3;
+    const unsigned char* y = src;
+    const unsigned char* vu = src + y_h * srcw;
+
+    unsigned char* zerobuf = new unsigned char[srcw];
+    unsigned char* writebuf = new unsigned char[wout];
+    memset(zerobuf, 0, sizeof(uint8_t) * srcw);
+
+    int i = 0;
+#pragma omp parallel for
+    for (i = 0; i < y_h; i += 2) {
+        const unsigned char* ptr_y1 = y + i * srcw;
+        const unsigned char* ptr_y2 = ptr_y1 + srcw;
+        const unsigned char* ptr_vu = vu + (i / 2) * srcw;
+        unsigned char* ptr_bgr1 = dst + i * wout;
+        unsigned char* ptr_bgr2 = ptr_bgr1 + wout;
+        if (i + 2 > y_h) {
+            ptr_y2 = zerobuf;
+            ptr_bgr2 = writebuf;
+        }
+        for (int j = 0; j < srcw; j += 2) {
+            unsigned char _y0 = ptr_y1[0];
+            unsigned char _y1 = ptr_y1[1];
+            unsigned char _v = ptr_vu[x_num];
+            unsigned char _u = ptr_vu[y_num];
+            unsigned char _y0_1 = ptr_y2[0];
+            unsigned char _y1_1 = ptr_y2[1];
+
+            int ra = floor((179 * (_v - 128)) >> 7);
+            int ga = floor((44 * (_u - 128) + 91 * (_v - 128)) >> 7);
+            int ba = floor((227 * (_u - 128)) >> 7);
+
+            int r = _y0 + ra;
+            int g = _y0 - ga;
+            int b = _y0 + ba;
+
+            int r1 = _y1 + ra;
+            int g1 = _y1 - ga;
+            int b1 = _y1 + ba;
+
+            r = r < 0 ? 0 : (r > 255) ? 255 : r;
+            g = g < 0 ? 0 : (g > 255) ? 255 : g;
+            b = b < 0 ? 0 : (b > 255) ? 255 : b;
+
+            r1 = r1 < 0 ? 0 : (r1 > 255) ? 255 : r1;
+            g1 = g1 < 0 ? 0 : (g1 > 255) ? 255 : g1;
+            b1 = b1 < 0 ? 0 : (b1 > 255) ? 255 : b1;
+
+            *ptr_bgr1++ = b;
+            *ptr_bgr1++ = g;
+            *ptr_bgr1++ = r;
+
+            int r2 = _y0_1 + ra;
+            int g2 = _y0_1 - ga;
+            int b2 = _y0_1 + ba;
+
+            int r3 = _y1_1 + ra;
+            int g3 = _y1_1 - ga;
+            int b3 = _y1_1 + ba;
+
+            r2 = r2 < 0 ? 0 : (r2 > 255) ? 255 : r2;
+            g2 = g2 < 0 ? 0 : (g2 > 255) ? 255 : g2;
+            b2 = b2 < 0 ? 0 : (b2 > 255) ? 255 : b2;
+
+            r3 = r3 < 0 ? 0 : (r3 > 255) ? 255 : r3;
+            g3 = g3 < 0 ? 0 : (g3 > 255) ? 255 : g3;
+            b3 = b3 < 0 ? 0 : (b3 > 255) ? 255 : b3;
+
+            *ptr_bgr1++ = b1;
+            *ptr_bgr1++ = g1;
+            *ptr_bgr1++ = r1;
+
+            *ptr_bgr2++ = b2;
+            *ptr_bgr2++ = g2;
+            *ptr_bgr2++ = r2;
+
+            ptr_y1 += 2;
+            ptr_y2 += 2;
+            ptr_vu += 2;
+
+            *ptr_bgr2++ = b3;
+            *ptr_bgr2++ = g3;
+            *ptr_bgr2++ = r3;
+        }
+    }
+    delete[] zerobuf;
+    delete[] writebuf;
+}
 
 
 void nv_to_bgr(const uint8_t* src,
@@ -592,54 +691,6 @@ void bgr2nv21(unsigned char *src, unsigned char *dst, int width, int height) {
     }
 }
 
-//int main() {
-//    int w = 176;
-//    int h = 144;
-//    printf("yuv file w: %d, h: %d \n", w, h);
-//
-//    FILE* yuv_file = fopen("res/salesman_qcif.yuv", "rb+");
-//    int frame_len = w * h * 3 / 2;
-//    unsigned char* frame_buf = new unsigned char[frame_len];
-//
-//    cv::Mat yuv_img(h * 3 / 2, w, CV_8UC1);
-//    cv::Mat bgr_img(h, w, CV_8UC3);
-//    uint8_t* bgr_nv21_mem = (uint8_t*)malloc(w*h*3*sizeof(uint8_t));
-//    cv::Mat bgr_neon_nv21_img(h, w, CV_8UC3);
-//    unsigned char* our_bgr_nv21_mem = (unsigned char*)malloc(w*h*3*sizeof(unsigned char));
-//    cv::Mat our_bgr_neon_nv21_img(h, w, CV_8UC3);
-//    for(int i = 0; i < 1; i++)
-//    {
-//        fread(frame_buf, frame_len*sizeof(unsigned char), 1, yuv_file);
-//        memcpy(yuv_img.data, frame_buf, frame_len*sizeof(unsigned char));
-//
-//        clock_t start_time = clock();
-//        cv::cvtColor(yuv_img, bgr_img, CV_YUV2BGR_I420);
-//        std::cout << "opencv_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-//        cv::imwrite("output/opencv_bgr_from_YUV420.jpg", bgr_img);
-//
-//        // nv21 x = 0, y = 1
-//        start_time = clock();
-//        nv_to_bgr((uint8_t*)frame_buf, bgr_nv21_mem, w, h, 0, 1);
-//        std::cout << "neon_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-//        memcpy(bgr_neon_nv21_img.data, (unsigned char*)bgr_nv21_mem, w*h*3*sizeof(unsigned char));
-//        cv::imwrite("output/paddlelite_bgr_from_nv21_neon.jpg", bgr_neon_nv21_img);
-//
-//
-//        start_time = clock();
-//        cvt_color_yuv2bgr_nv21(frame_buf, our_bgr_nv21_mem, w, h);
-//        std::cout << "our_neon_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-//        memcpy(our_bgr_neon_nv21_img.data, our_bgr_nv21_mem, w*h*3*sizeof(unsigned char));
-//        cv::imwrite("output/our_bgr_from_nv21_neon.jpg", our_bgr_neon_nv21_img);
-//
-//        printf("frame : %d \n", i);
-//    }
-//
-//    delete[] frame_buf;
-//    fclose(yuv_file);
-//
-//    return 0;
-//}
-
 
 int main() {
     cv::Mat img = cv::imread("res/akiyo_qcif.jpg");
@@ -673,14 +724,25 @@ int main() {
     memcpy(paddle_bgr_from_nv21_neon_img.data, (unsigned char*)paddle_bgr_nv21_mem, w*h*3*sizeof(unsigned char));
     cv::imwrite("output/yuv_nv21_to_bgr_neon.jpg", paddle_bgr_from_nv21_neon_img);
 
-
-    unsigned char* our_bgr_nv21_mem = (unsigned char*)malloc(w*h*c*sizeof(unsigned char));
+    // naive yuv_nv21 to bgr
+    unsigned char* naive_bgr_nv21_mem = (unsigned char*)malloc(w*h*c*sizeof(unsigned char));
+    // nv21 x = 0, y = 1
     start_time = clock();
-    cvt_color_yuv2bgr_nv21(nv21_mem, our_bgr_nv21_mem, w, h);
-    std::cout << "our_neon_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-    cv::Mat our_bgr_neon_nv21_img(h, w, CV_8UC3);
-    memcpy(our_bgr_neon_nv21_img.data, our_bgr_nv21_mem, w*h*c*sizeof(unsigned char));
-    cv::imwrite("output/yuv_nv21_to_bgr_neon_ours.jpg", our_bgr_neon_nv21_img);
+    nv_to_bgr_naive((uint8_t*)nv21_mem, naive_bgr_nv21_mem, w, h, 0, 1);
+    std::cout << "naive_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
+
+    cv::Mat naive_bgr_from_nv21_img(h, w, CV_8UC3);
+    memcpy(naive_bgr_from_nv21_img.data, naive_bgr_nv21_mem, w*h*3*sizeof(unsigned char));
+    cv::imwrite("output/yuv_nv21_to_bgr_naive.jpg", naive_bgr_from_nv21_img);
+
+
+//    unsigned char* our_bgr_nv21_mem = (unsigned char*)malloc(w*h*c*sizeof(unsigned char));
+//    start_time = clock();
+//    cvt_color_yuv2bgr_nv21(nv21_mem, our_bgr_nv21_mem, w, h);
+//    std::cout << "our_neon_cost: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
+//    cv::Mat our_bgr_neon_nv21_img(h, w, CV_8UC3);
+//    memcpy(our_bgr_neon_nv21_img.data, our_bgr_nv21_mem, w*h*c*sizeof(unsigned char));
+//    cv::imwrite("output/yuv_nv21_to_bgr_neon_ours.jpg", our_bgr_neon_nv21_img);
 
 
     return 0;

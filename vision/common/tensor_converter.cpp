@@ -6,8 +6,6 @@
 
 namespace vision {
 
-static const char* TAG = "TensorConverter";
-
 template <typename T>
 Tensor TensorConverter::convert_from(const T& mat, bool copy) {
     return Tensor();

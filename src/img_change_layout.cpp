@@ -7,8 +7,8 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "vision/tensor.h"
-#include "vision/tensor_converter.h"
+#include "../vision/common/tensor.h"
+#include "../vision/common/tensor_converter.h"
 
 #include "neon_normalize/layout_change.cpp"
 #include "neon_normalize/dtype_change.cpp"
@@ -17,8 +17,8 @@ using namespace std;
 using namespace cv;
 using namespace vision;
 
-int main() {
-    Mat src_mat = imread("res/salesman.jpg", 1);
+int main () {
+    Mat src_mat = imread("res/640x360.jpg");
     int h = src_mat.rows;
     int w = src_mat.cols;
     int c = src_mat.channels();
@@ -28,6 +28,13 @@ int main() {
     src_mat.convertTo(src_mat_fp32_opencv, CV_32FC(c));
     std::cout << "u8_2_fp32_cost_opencv: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
     imwrite("output/u8_2_fp32_opencv.jpg", src_mat_fp32_opencv);
+
+    start_time = clock();
+    Mat src_mat_u8_opencv;
+    src_mat_fp32_opencv.convertTo(src_mat_u8_opencv, CV_8UC(c));
+    std::cout << "fp32_2_u8_cost_opencv: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
+    imwrite("output/fp32_2_u8_opencv.jpg", src_mat_u8_opencv);
+
 
     vision::Tensor int8_tensor = vision::TensorConverter::convert_from<cv::Mat>(src_mat, true);
     start_time = clock();
@@ -95,8 +102,8 @@ int main() {
 }
 
 
-int main1() {
-    Mat src_mat = imread("res/salesman.jpg", 1);
+int main1 () {
+    Mat src_mat = imread("res/lakers25601440.jpeg");
     clock_t start_time = clock();
     std::vector<Mat> bgr_mats;
     cv::split(src_mat, bgr_mats);

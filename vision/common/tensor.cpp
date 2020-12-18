@@ -32,8 +32,6 @@ namespace vision {
 static inline int IOV_FETCH_ADD(int* addr, int delta) { int tmp = *addr; *addr += delta; return tmp; }
 #endif
 
-static const char* TAG = "Tensor";
-
 Tensor::Tensor()
     : w(0), h(0), c(0), stride(0), dims(0), data(nullptr), dtype(FP32), layout(NCHW),
       _name(""), _ref_count(nullptr) {
@@ -184,10 +182,6 @@ void chw_to_hwc(T* in, T* out, int w, int h, int c) {
 //#if defined (__ARM_NEON)
 void hwc_2_chw_neon_u8(const uint8_t *src_data, uint8_t *dst_data, int w, int h, int c) {
     int stride = w * h;
-    if (c == 1){
-        memcpy(dst_data, src_data, stride);
-        return;
-    }
 
     int num8x16 = int(stride / 16);
     int remain = stride % 16;
@@ -422,7 +416,7 @@ Tensor Tensor::change_layout(DLayout _layout) {
             hwc_to_chw<short>((short*)data, (short*)t.data, w, h, c);
         } else if (dtype == INT8) {
 #if defined (__ARM_NEON)
-            if (c == 3) {
+        if (c == 3) {
             hwc_2_chw_neon_u8((uint8_t*)data, (uint8_t*)t.data, w, h, c);
         } else {
             hwc_to_chw<char>((char*)data, (char*)t.data, w, h, c);
@@ -434,7 +428,7 @@ Tensor Tensor::change_layout(DLayout _layout) {
     } else if (layout == NCHW && _layout == NHWC) {
         if (dtype == FP32) {
 #if defined (__ARM_NEON)
-            if (c == 3) {
+        if (c == 3) {
             chw_2_hwc_neon_fp32((float*)data, (float*)t.data, w, h, c);
         } else {
             chw_to_hwc<float>((float*)data, (float*)t.data, w, h, c);

@@ -1,59 +1,67 @@
-//
-// Created by v_guojinlong on 2020-10-12.
-//
+#include "crop.h"
 
-#include <iostream>
-#include <time.h>
+#include <math.h>
 
-#include <arm_neon.h>
+#ifdef USE_OPENCV
 #include "opencv2/opencv.hpp"
+#endif
 
-#include "../vision/common/tensor.h"
-#include "../vision/common/tensor_converter.h"
+#if defined (USE_NEON) and __ARM_NEON
+#include "arm_neon.h"
+#endif
+
+#include "../common/tensor_converter.h"
+
+namespace va_cv {
+
 using namespace vision;
-using namespace std;
 
-typedef struct VACV_RECT{
-    int left;
-    int top;
-    int width;
-    int height;
-} VACV_RECT;
-
-struct  VRect {
-        float left;
-        float top;
-        float right;
-        float bottom;
-        VRect(float _left, float _top, float _right, float _bottom)
-        : left(_left), top(_top), right(_right), bottom(_bottom) {}
-        void set(float left, float top, float right, float bottom);
-        float width() const;
-        float height() const;
-        bool contains(float x, float y);
-};
-void VRect::set(float l, float t, float r, float b) {
-    left = l;
-    top = t;
-    right = r;
-    bottom = b;
+void Crop::crop(const vision::Tensor &src, vision::Tensor &dst, const VRect &rect) {
+#if defined (USE_NEON) and __ARM_NEON
+    if ((src.dtype == INT8 || src.dtype == FP32) && (src.c == 1 || src.c == 3)) {
+        crop_neon(src, dst, rect);
+    } else {
+        crop_opencv(src, dst, rect);
+    }
+#elif defined (USE_SSE)
+    crop_sse(src, dst, rect);
+#elif defined (USE_OPENCV)
+    crop_opencv(src, dst, rect);
+#else
+    crop_naive(src, dst, rect);
+#endif // USE_OPENCV
 }
 
-float VRect::width() const {
-    return right - left;
+void Crop::crop_opencv(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
+#ifdef USE_OPENCV
+    const auto& mat_src = vision::TensorConverter::convert_to<cv::Mat>(src);
+    cv::Rect cv_rect(cvRound(rect.left), cvRound(rect.top),
+                     cvRound(rect.right - rect.left),
+                     cvRound(rect.bottom - rect.top));
+    cv::Mat mat_dst;
+    mat_dst = mat_src(cv_rect).clone();
+    dst = vision::TensorConverter::convert_from<cv::Mat>(mat_dst, true);
+#endif
 }
 
-float VRect::height() const {
-    return bottom - top;
+void Crop::crop_naive(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
+    // todo:
 }
 
-bool VRect::contains(float x, float y) {
-    return left < right && top < bottom  // check for empty first
-           && x >= left && x < right && y >= top && y < bottom;
+void Crop::crop_sse(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
+    // todo:
 }
 
-static void crop_neon_hwc(const vision::Tensor& src, vision::Tensor& dst, VRect& rect) {
+#if defined (USE_NEON) and __ARM_NEON
+void Crop::crop_neon(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
+    if (src.c == 1 || src.layout == NHWC) {
+        crop_neon_hwc_rgb_ir(src, dst, rect);
+    } else {
+        crop_neon_chw_rgb(src, dst, rect);
+    }
+}
 
+void Crop::crop_neon_hwc_rgb_ir(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
     if (src.dtype == INT8) {
         dst.create(round(rect.width()), round(rect.height()), src.c, NHWC, INT8);
         uint8_t* src_data = (uint8_t*)src.data;
@@ -67,11 +75,11 @@ static void crop_neon_hwc(const vision::Tensor& src, vision::Tensor& dst, VRect&
         int src_offset;
         int dst_offset;
         for (int i = 0; i < dst.h; i++) {
-            int src_row_index = int(rect.top) + i;
+            int src_row_index = round(rect.top) + i;
             int src_row_ofs = src_row_index * src.w;
             int dst_row_ofs = i * dst.w;
             for (int k = 0; k < crop_row_num8x16; k++) {
-                src_offset = (src_row_ofs + int(rect.left) + k * count) * src.c;
+                src_offset = (src_row_ofs + round(rect.left) + k * count) * src.c;
                 dst_offset = (dst_row_ofs + k * count) * dst.c;
 
                 if (src.c == 3) {
@@ -106,11 +114,11 @@ static void crop_neon_hwc(const vision::Tensor& src, vision::Tensor& dst, VRect&
         int src_offset;
         int dst_offset;
         for (int i = 0; i < dst.h; i++) {
-            int src_row_index = int(rect.top) + i;
+            int src_row_index = round(rect.top) + i;
             int src_row_ofs = src_row_index * src.w;
             int dst_row_ofs = i * dst.w;
             for (int k = 0; k < crop_row_num32x4; k++) {
-                src_offset = (src_row_ofs + int(rect.left) + k * count) * src.c;
+                src_offset = (src_row_ofs + round(rect.left) + k * count) * src.c;
                 dst_offset = (dst_row_ofs + k * count) * dst.c;
 
                 if (src.c == 3) {
@@ -135,7 +143,8 @@ static void crop_neon_hwc(const vision::Tensor& src, vision::Tensor& dst, VRect&
     }
 }
 
-static void crop_neon_chw(const vision::Tensor& src, vision::Tensor& dst, const VRect& rect) {
+void Crop::crop_neon_chw_rgb(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
+
     if (src.dtype == INT8) {
         dst.create(round(rect.width()), round(rect.height()), src.c, NCHW, INT8);
         uint8_t* src_data = (uint8_t*)src.data;
@@ -154,8 +163,8 @@ static void crop_neon_chw(const vision::Tensor& src, vision::Tensor& dst, const 
         int g_dst_channel_ofs = dst.w * dst.h;
         int r_dst_channel_ofs = dst.w * dst.h* 2;
         for (int i = 0; i < dst.h; i++) {
-            int src_row_index = int(rect.top) + i;
-            int src_row_ofs = b_src_channel_ofs + src_row_index * src.w + int(rect.left);
+            int src_row_index = round(rect.top) + i;
+            int src_row_ofs = b_src_channel_ofs + src_row_index * src.w + round(rect.left);
             int dst_row_ofs = b_dst_channel_ofs + i * dst.w;
             int k = 0;
             for (k = 0; k < crop_row_num8x16; k++) {
@@ -209,8 +218,8 @@ static void crop_neon_chw(const vision::Tensor& src, vision::Tensor& dst, const 
         int g_dst_channel_ofs = dst.w * dst.h;
         int r_dst_channel_ofs = dst.w * dst.h* 2;
         for (int i = 0; i < dst.h; i++) {
-            int src_row_index = int(rect.top) + i;
-            int src_row_ofs = b_src_channel_ofs + src_row_index * src.w + int(rect.left);
+            int src_row_index = round(rect.top) + i;
+            int src_row_ofs = b_src_channel_ofs + src_row_index * src.w + round(rect.left);
             int dst_row_ofs = b_dst_channel_ofs + i * dst.w;
             int k = 0;
             for (k = 0; k < crop_row_num32x4; k++) {
@@ -246,54 +255,9 @@ static void crop_neon_chw(const vision::Tensor& src, vision::Tensor& dst, const 
                 }
             }
         }
+
     }
 }
+#endif // USE_NEON
 
-
-int main() {
-    cv::Mat img = cv::imread("res/lakers25601440.jpeg", 0);
-
-//    int rect_left   = 1900;
-//    int rect_top    = 500;
-//    int rect_height = 170;
-//    int rect_width  = 150;
-    int rect_left   = 200;
-    int rect_top    = 200;
-    int rect_height = 800;
-    int rect_width  = 1280;
-
-    cv::Mat crop;
-    clock_t start_time = clock();
-    crop = img(cv::Rect(rect_left, rect_top, rect_width, rect_height)).clone();
-    clock_t end_time = clock();
-    std::cout << "cv_cost: " << (double)(end_time - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-    cv::imwrite("output/crop_opencv.jpg", crop);
-    vision::Tensor cv_tensor = vision::TensorConverter::convert_from<cv::Mat>(crop);
-
-
-    vision::Tensor tensor = vision::TensorConverter::convert_from<cv::Mat>(img);
-    VRect rect(rect_left, rect_top, rect_left + rect_width, rect_top + rect_height);
-    vision::Tensor crop_tensor(rect_width, rect_height, tensor.c, NHWC);
-    start_time = clock();
-    crop_neon_hwc(tensor, crop_tensor, rect);
-    end_time = clock();
-    std::cout << "neon_hwc_cost: " << (double)(end_time - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-    cv::Mat neon_crop(rect_height, rect_width, CV_8UC(crop_tensor.c), crop_tensor.data);
-    cv::imwrite("output/crop_neon_hwc.jpg", neon_crop);
-
-    vision::Tensor tensor_chw = tensor.change_layout(NCHW);
-    vision::Tensor crop_tensor_chw(rect_width, rect_height, tensor.c, NCHW);
-    start_time = clock();
-    crop_neon_chw(tensor_chw, crop_tensor_chw, rect);
-    end_time = clock();
-    vision::Tensor crop_tensor_hwc = crop_tensor_chw.change_layout(NHWC);
-    std::cout << "neon_chw_cost: " << (double)(end_time - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-    cv::Mat neon_crop_chw(rect_height, rect_width, CV_8UC(crop_tensor_hwc.c), crop_tensor_hwc.data);
-    cv::imwrite("output/crop_neon_chw.jpg", neon_crop_chw);
-
-
-
-
-    return 0;
-}
-
+} // namespace va_cv

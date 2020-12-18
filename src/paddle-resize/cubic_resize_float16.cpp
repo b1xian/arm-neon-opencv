@@ -6,8 +6,8 @@
 #include <iostream>
 #include "arm_neon.h"
 
-#include "../vision/tensor.h"
-#include "../vision/tensor_converter.h"
+#include "../../vision/common/tensor.h"
+#include "../../vision/common/tensor_converter.h"
 #include "opencv2/opencv.hpp"
 
 using namespace std;

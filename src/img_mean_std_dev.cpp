@@ -8,8 +8,8 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "vision/tensor.h"
-#include "vision/tensor_converter.h"
+#include "../vision/common/tensor.h"
+#include "../vision/common/tensor_converter.h"
 
 #include "neon_normalize/layout_change.cpp"
 #include "neon_normalize/dtype_change.cpp"
@@ -24,7 +24,7 @@ using namespace vision;
 int main () {
 
 
-    Mat src_mat = imread("res/salesman_qcif.jpg");
+    Mat src_mat = imread("res/lakers25601440.jpeg");
     int h = src_mat.rows;
     int w = src_mat.cols;
     int c = src_mat.channels();

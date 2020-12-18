@@ -379,7 +379,6 @@ static void du_resize_bicubic_image_naive_three_channel(float* src, int srcw, in
                     rows3p[dx*3 +i] = S3p[-1*3+i] * a0 + S3p[0*3+i] * a1 + S3p[1*3+i] * a2 + S3p[2*3+i] * a3;
                 }
 
-
                 alphap += 4;
             }
         } else if (sy == prev_sy1 + 3) {

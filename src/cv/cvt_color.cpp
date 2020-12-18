@@ -20,13 +20,9 @@ using namespace vision;
 void CvtColor::cvt_color(const Tensor& src, Tensor& dst, int code) {
 #if defined (USE_NEON) and __ARM_NEON
     cvt_color_neon(src, dst, code);
-#elif defined (USE_SSE)
-    cvt_color_sse(src, dst, code);
-#elif defined (USE_OPENCV)
-    cvt_color_opencv(src, dst, code);
 #else
     cvt_color_naive(src, dst, code);
-#endif // USE_OPENCV
+#endif // USE_NEON
 }
 
 void CvtColor::cvt_color_opencv(const Tensor& src, Tensor& dst, int code) {

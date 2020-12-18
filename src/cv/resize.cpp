@@ -19,15 +19,11 @@ using namespace vision;
 void Resize::resize(const Tensor& src, Tensor& dst,
                     VSize dsize, double fx, double fy,
                     int interpolation) {
-#ifdef USE_OPENCV
+#if defined (USE_NEON) and __ARM_NEON
     resize_opencv(src, dst, dsize, fx, fy, interpolation);
-#elif defined (USE_SSE)
-    resize_sse(src, dst, dsize, fx, fy, interpolation);
-#elif defined (USE_NEON) and __ARM_NEON
-    resize_neon(src, dst, dsize, fx, fy, interpolation);
 #else
     resize_naive(src, dst, dsize, fx, fy, interpolation);
-#endif // USE_OPENCV
+#endif // USE_NEON
 }
 
 void Resize::resize_opencv(const Tensor& src, Tensor& dst,

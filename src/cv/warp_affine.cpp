@@ -16,17 +16,11 @@ using namespace vision;
 void WarpAffine::warp_affine( const Tensor& src, Tensor& dst,
                   const Tensor& M, VSize dsize, int flags,
                   int borderMode, const VScalar& borderValue) {
-#ifdef USE_OPENCV
-    warp_affine_opencv(src, dst, M, dsize, flags, borderMode, borderValue);
-#else
-#if defined (USE_NEON) and __ARM_NEON
+#ifdef defined (USE_NEON) and __ARM_NEON
     warp_affine_neon(src, dst, M, dsize, flags, borderMode, borderValue);
-#elif defined (USE_SSE)
-    warp_affine_sse(src, dst, M, dsize, flags, borderMode, borderValue);
 #else
     warp_affine_naive(src, dst, M, dsize, flags, borderMode, borderValue);
-#endif
-#endif // USE_OPENCV
+#endif // USE_NEON
 }
 
 void WarpAffine::warp_affine(const vision::Tensor& src, vision::Tensor& dst,

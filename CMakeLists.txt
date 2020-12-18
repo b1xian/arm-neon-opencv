@@ -20,9 +20,9 @@ message(STATUS "[Dependency] opencv lib_dir=" ${OPENCV_LINK_DIR})
 set(OPENCV_LIB opencv_calib3d opencv_highgui opencv_imgproc opencv_core libtiff libpng libjpeg libjasper IlmImf)
 
 
-aux_source_directory(vision/common vision_common)
-aux_source_directory(vision/cv vision_cv)
-aux_source_directory(vision/util vision_util)
+aux_source_directory(src/common vision_common)
+aux_source_directory(src/cv vision_cv)
+aux_source_directory(src/util vision_util)
 
 add_library(${lib_name} SHARED ${vision_common} ${vision_cv} ${vision_util})
 
@@ -31,4 +31,4 @@ target_link_directories(${lib_name} PUBLIC ${OPENCV_LINK_DIR} ${OPENCV_3RDPARTY_
 target_link_libraries(${lib_name} PUBLIC log z ${OPENCV_LIB})
 target_include_directories(${lib_name} PUBLIC ${OPENCV_INCLUDE_DIR})
 
-add_subdirectory(vision/test)
+add_subdirectory(src/test)

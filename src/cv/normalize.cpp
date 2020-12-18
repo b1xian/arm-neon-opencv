@@ -20,17 +20,12 @@ using namespace vision;
 
 void Normalize::normalize(const Tensor& src, Tensor& dst,
                const Tensor& mean, const Tensor& stddev) {
-#ifdef USE_OPENCV
-    normalize_opencv(src, dst, mean, stddev);
-#else
+
 #if defined (USE_NEON) and __ARM_NEON
     normalize_neon(src, dst, mean, stddev);
-#elif defined (USE_SSE)
-    normalize_sse(src, dst, mean, stddev);
 #else
     normalize_naive(src, dst, mean, stddev);
-#endif
-#endif // USE_OPENCV
+#endif // USE_NEON
 }
 
 void Normalize::normalize_opencv(const Tensor& src, Tensor& dst,

@@ -23,13 +23,9 @@ void Crop::crop(const vision::Tensor &src, vision::Tensor &dst, const VRect &rec
     } else {
         crop_opencv(src, dst, rect);
     }
-#elif defined (USE_SSE)
-    crop_sse(src, dst, rect);
-#elif defined (USE_OPENCV)
-    crop_opencv(src, dst, rect);
 #else
     crop_naive(src, dst, rect);
-#endif // USE_OPENCV
+#endif // USE_NEON
 }
 
 void Crop::crop_opencv(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {

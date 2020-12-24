@@ -19,11 +19,7 @@ using namespace vision;
 
 void Crop::crop(const vision::Tensor &src, vision::Tensor &dst, const VRect &rect) {
 #if defined (USE_NEON) and __ARM_NEON
-    if ((src.dtype == INT8 || src.dtype == FP32) && (src.c == 1 || src.c == 3)) {
-        crop_neon(src, dst, rect);
-    } else {
-        crop_opencv(src, dst, rect);
-    }
+    crop_neon(src, dst, rect);
 #else
     crop_naive(src, dst, rect);
 #endif // USE_NEON
@@ -125,11 +121,15 @@ void Crop::crop_naive_hwc_rgb(const vision::Tensor& src, vision::Tensor& dst, co
 }
 
 void Crop::crop_naive(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
-    // todo:
-    if (src.layout == NHWC) {
-        crop_naive_hwc_rgb(src, dst, rect);
+
+    if (src.dtype == INT8 || src.dtype == FP32) {
+        if (src.layout == NHWC) {
+            crop_naive_hwc_rgb(src, dst, rect);
+        } else {
+            crop_naive_chw(src, dst, rect);
+        }
     } else {
-        crop_naive_chw(src, dst, rect);
+        crop_opencv(src, dst, rect);
     }
 }
 
@@ -139,10 +139,14 @@ void Crop::crop_sse(const vision::Tensor& src, vision::Tensor& dst, const vision
 
 #if defined (USE_NEON) and __ARM_NEON
 void Crop::crop_neon(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
-    if (src.c == 1 || src.layout == NHWC) {
-        crop_neon_hwc_rgb_ir(src, dst, rect);
+    if ((src.dtype == INT8 || src.dtype == FP32) && (src.c == 1 || src.c == 3)) {
+        if (src.c == 1 || src.layout == NHWC) {
+            crop_neon_hwc_rgb_ir(src, dst, rect);
+        } else {
+            crop_neon_chw_rgb(src, dst, rect);
+        }
     } else {
-        crop_neon_chw_rgb(src, dst, rect);
+        crop_opencv(src, dst, rect);
     }
 }
 

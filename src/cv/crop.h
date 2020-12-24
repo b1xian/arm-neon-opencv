@@ -17,6 +17,8 @@ private:
     static void crop_neon(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect);
     static void crop_neon_hwc_rgb_ir(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect);
     static void crop_neon_chw_rgb(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect);
+    static void crop_naive_hwc_rgb(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect);
+    static void crop_naive_chw(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect);
 };
 
 } // namespace va_cv

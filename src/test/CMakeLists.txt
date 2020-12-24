@@ -22,11 +22,8 @@ target_link_libraries(${UT_NAME}
                         ${OPENCV_LIB}
                         vacv
                         )
-message(${CMAKE_BINARY_DIR})
-message(${CMAKE_CURRENT_SOURCE_DIR})
-message(${TARGET_OS})
-message(${CMAKE_BINARY_DIR}/vacv_test/)
-install(FILES ${CMAKE_BINARY_DIR}/vision/test/${UT_NAME} DESTINATION ${CMAKE_BINARY_DIR}/vacv_test/)
+
+install(FILES ${CMAKE_BINARY_DIR}/src/test/${UT_NAME} DESTINATION ${CMAKE_BINARY_DIR}/vacv_test/)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/res/176x144.jpg DESTINATION ${CMAKE_BINARY_DIR}/vacv_test/res)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/res/284x214.jpg DESTINATION ${CMAKE_BINARY_DIR}/vacv_test/res)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/res/640x360.jpg DESTINATION ${CMAKE_BINARY_DIR}/vacv_test/res)

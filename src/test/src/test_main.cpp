@@ -21,6 +21,7 @@ int main(int argc, char** argv) {
             {TestCrop::test_crop640x360, "test_crop640x360"},
             {TestCrop::test_crop1280x720, "test_crop1280x720"},
             {TestCrop::test_crop1920x1080, "test_crop1920x1080"},
+            {TestCrop::test_crop_chw_320x180, "test_crop_chw_320x180"},
 
             {TestResize::test_resize_bilinear_hwc_u8_320x180, "test_resize_bilinear_hwc_u8_320x180"},
             {TestResize::test_resize_bilinear_chw_u8_320x180, "test_resize_bilinear_chw_u8_320x180"},

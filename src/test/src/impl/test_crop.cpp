@@ -154,5 +154,36 @@ std::vector<double>  TestCrop::test_crop1920x1080() {
     return profile_details;
 }
 
+std::vector<double> TestCrop::test_crop_chw_320x180() {
+    cv::Mat src_mat = cv::imread(test_img_2560x1440);
+    cv::Mat cv_crop320x180_mat;
+    double opencv_duration;
+    {
+        TIME_PERF(opencv_duration);
+        cv_crop320x180_mat = src_mat(cv_rect320x180).clone();
+    }
+
+    Tensor src_tensor = TensorConverter::convert_from<cv::Mat>(src_mat);
+    Tensor src_tensor_chw = src_tensor.change_layout(NCHW);
+    Tensor vacv_crop320x180_tensor_chw;
+    double vacv_duration;
+    {
+        TIME_PERF(vacv_duration);
+        va_cv::crop(src_tensor_chw, vacv_crop320x180_tensor_chw, v_rect320x180);
+    }
+    Tensor vacv_crop320x180_tensor_hwc = vacv_crop320x180_tensor_chw.change_layout(NHWC);
+
+    float cosine_distance = ImageUtil::compare_image_data((char*)cv_crop320x180_mat.data,
+                                                          (char*)vacv_crop320x180_tensor_hwc.data,
+                                                          int(vacv_crop320x180_tensor_hwc.size()));
+
+    std::vector<double> profile_details;
+    profile_details.push_back(opencv_duration);
+    profile_details.push_back(vacv_duration);
+    profile_details.push_back(static_cast<double>(cosine_distance));
+    profile_details.push_back(1);
+    return profile_details;
+}
+
 
 } // namespace vacv

@@ -1,5 +1,6 @@
 #include "crop.h"
 
+#include <iostream>
 #include <math.h>
 
 #ifdef USE_OPENCV
@@ -40,8 +41,96 @@ void Crop::crop_opencv(const vision::Tensor& src, vision::Tensor& dst, const vis
 #endif
 }
 
+void Crop::crop_naive_chw(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
+
+    if (src.dtype == INT8) {
+        dst.create(round(rect.width()), round(rect.height()), src.c, NCHW, INT8);
+        unsigned char* src_data = (unsigned char*)src.data;
+        unsigned char* dst_data = (unsigned char*)dst.data;
+
+        for (int k = 0; k < src.c; k++) {
+
+            int src_channel_ofs = src.w * src.h * k;
+            int dst_channel_ofs = dst.w * dst.h * k;
+            for (int i = 0; i < dst.h; i++) {
+                int src_row_index = round(rect.top) + i;
+                int src_row_ofs = src_channel_ofs + src_row_index * src.w + round(rect.left);
+                int dst_row_ofs = dst_channel_ofs + i * dst.w;
+                for (int j = 0; j < dst.w; j++) {
+                    *(dst_data + dst_row_ofs + j) = *(src_data + src_row_ofs + j);
+                }
+            }
+        }
+    } else if (src.dtype == FP32) {
+        dst.create(round(rect.width()), round(rect.height()), src.c, NCHW, FP32);
+        float* src_data = (float*)src.data;
+        float* dst_data = (float*)dst.data;
+
+        for (int k = 0; k < src.c; k++) {
+            int src_channel_ofs = src.w * src.h * k;
+            int dst_channel_ofs = src.w * src.h * k;
+            for (int i = 0; i < dst.h; i++) {
+                int src_row_index = round(rect.top) + i;
+                int src_row_ofs = src_channel_ofs + src_row_index * src.w + round(rect.left);
+                int dst_row_ofs = dst_channel_ofs + i * dst.w;
+                for (int j = 0; j < dst.w; j++) {
+                    *(dst_data + dst_row_ofs + j) = *(src_data + src_row_ofs + j);
+                }
+            }
+        }
+    }
+}
+
+void Crop::crop_naive_hwc_rgb(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
+
+    if (src.dtype == INT8) {
+        dst.create(round(rect.width()), round(rect.height()), src.c, NHWC, INT8);
+        unsigned char* src_data = (unsigned char*)src.data;
+        unsigned char* dst_data = (unsigned char*)dst.data;
+
+        int src_offset;
+        int dst_offset;
+        for (int i = 0; i < dst.h; i++) {
+            int src_row_index = round(rect.top) + i;
+            int src_row_ofs = src_row_index * src.w;
+            int dst_row_ofs = i * dst.w;
+            for (int j = 0; j < dst.w; j++) {
+                src_offset = (src_row_ofs + round(rect.left) + j) * src.c;
+                dst_offset = (dst_row_ofs + j) * dst.c;
+                for (int k = 0; k < src.c; k++) {
+                    *(dst_data + dst_offset + k) = *(src_data + src_offset + k);
+                }
+            }
+        }
+    } else if (src.dtype == FP32) {
+        dst.create(round(rect.width()), round(rect.height()), src.c, NHWC, FP32);
+        float* src_data = (float*)src.data;
+        float* dst_data = (float*)dst.data;
+
+        int src_offset;
+        int dst_offset;
+        for (int i = 0; i < dst.h; i++) {
+            int src_row_index = round(rect.top) + i;
+            int src_row_ofs = src_row_index * src.w;
+            int dst_row_ofs = i * dst.w;
+            for (int j = 0; j < dst.w; j++) {
+                src_offset = (src_row_ofs + round(rect.left) + j) * src.c;
+                dst_offset = (dst_row_ofs + j) * dst.c;
+                for (int k = 0; k < src.c; k++) {
+                    *(dst_data + dst_offset + k) = *(src_data + src_offset + k);
+                }
+            }
+        }
+    }
+}
+
 void Crop::crop_naive(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
     // todo:
+    if (src.layout == NHWC) {
+        crop_naive_hwc_rgb(src, dst, rect);
+    } else {
+        crop_naive_chw(src, dst, rect);
+    }
 }
 
 void Crop::crop_sse(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {

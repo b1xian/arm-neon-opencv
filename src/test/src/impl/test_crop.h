@@ -17,6 +17,7 @@ public:
 
     static std::vector<double> test_crop1920x1080();
 
+    static std::vector<double> test_crop_chw_320x180();
 };
 
 } // namespace vacv

@@ -22,9 +22,20 @@ void NormalizeNeon::mean_stddev_neon_hwc_bgr(float* src, int stride, float* mean
     int i = 0;
     for (i = 0; i < num_32x4; i++) {
         float32x4x3_t bgr_fp32x4x3 = vld3q_f32(src + i * 4 * 3);
+#if __aarch64__
         b_sum_f32 += vaddvq_f32(bgr_fp32x4x3.val[0]);
         g_sum_f32 += vaddvq_f32(bgr_fp32x4x3.val[1]);
         r_sum_f32 += vaddvq_f32(bgr_fp32x4x3.val[2]);
+#else
+        float32x4_t b_val = bgr_fp32x4x3.val[0];
+        float32x4_t g_val = bgr_fp32x4x3.val[1];
+        float32x4_t r_val = bgr_fp32x4x3.val[2];
+        for (int i = 0; i < 4; i++) {
+            b_sum_f32 += b_val[i];
+            g_sum_f32 += g_val[i];
+            r_sum_f32 += r_val[i];
+        }
+#endif // __aarch64__
     }
     if (remain > 0) {
         for (int j = 0; j < remain; j++) {
@@ -59,22 +70,32 @@ void NormalizeNeon::mean_stddev_neon_hwc_bgr(float* src, int stride, float* mean
         b_float32x4 = vsubq_f32(b_float32x4, b_mean_float32x4);
         // power2
         b_float32x4 = vmulq_f32(b_float32x4, b_float32x4);
-        // mean
-        b_stddev_f32 = vaddvq_f32(b_float32x4);
-        b_stddev_f32_mean += b_stddev_f32 / stride;
 
         // g
         float32x4_t g_float32x4 = bgr_fp32x4x3.val[1];
         g_float32x4 = vsubq_f32(g_float32x4, g_mean_float32x4);
         g_float32x4 = vmulq_f32(g_float32x4, g_float32x4);
-        g_stddev_f32 = vaddvq_f32(g_float32x4);
-        g_stddev_f32_mean += g_stddev_f32 / stride;
 
         // r
         float32x4_t r_float32x4 = bgr_fp32x4x3.val[2];
         r_float32x4 = vsubq_f32(r_float32x4, r_mean_float32x4);
         r_float32x4 = vmulq_f32(r_float32x4, r_float32x4);
+
+        // mean
+#if __aarch64__
+        b_stddev_f32 = vaddvq_f32(b_float32x4);
+        g_stddev_f32 = vaddvq_f32(g_float32x4);
         r_stddev_f32 = vaddvq_f32(r_float32x4);
+#else
+        for (int i = 0; i < 4; i++) {
+            b_stddev_f32 += b_float32x4[i];
+            g_stddev_f32 += g_float32x4[i];
+            r_stddev_f32 += r_float32x4[i];
+        }
+#endif // __aarch64__
+
+        b_stddev_f32_mean += b_stddev_f32 / stride;
+        g_stddev_f32_mean += g_stddev_f32 / stride;
         r_stddev_f32_mean += r_stddev_f32 / stride;
     }
     if (remain > 0) {
@@ -114,7 +135,13 @@ void NormalizeNeon::mean_stddev_neon_chw(float* src, int stride, int c, float* m
         int i = 0;
         for (i = 0; i < num_32x4; i++) {
             float32x4_t channel_fp32x4 = vld1q_f32(channel_ofs + i * 4);
+#if __aarch64__
             channel_sum += vaddvq_f32(channel_fp32x4);
+#else
+            for (int i = 0; i < 4; i++) {
+                channel_sum += channel_fp32x4[i];
+            }
+#endif // __aarch64__
         }
         if (remain > 0) {
             for (int j = 1; j <= remain; j++) {
@@ -134,7 +161,14 @@ void NormalizeNeon::mean_stddev_neon_chw(float* src, int stride, int c, float* m
             float32x4_t channel_fp32x4 = vld1q_f32(channel_ofs + i*4);
             channel_fp32x4 = vsubq_f32(channel_fp32x4, channel_mean_float32x4);
             channel_fp32x4 = vmulq_f32(channel_fp32x4, channel_fp32x4);
-            float channel_stddev_f32 = vaddvq_f32(channel_fp32x4);
+            float channel_stddev_f32 = 0.0f;
+#if __aarch64__
+            channel_stddev_f32 = vaddvq_f32(channel_fp32x4);
+#else
+            for (int i = 0; i < 4; i++) {
+                channel_stddev_f32 += channel_fp32x4[i];
+            }
+#endif // __aarch64__
             channel_stddev_f32_mean += channel_stddev_f32 / stride;
         }
         if (remain > 0) {
@@ -171,15 +205,24 @@ void NormalizeNeon::normalize_neon_hwc_bgr(float* src, float* dst, int stride, f
 
         b_float32x4 = bgr_fp32x4x3.val[0];
         b_float32x4 = vsubq_f32(b_float32x4, b_mean_float32x4);
-        b_float32x4 = vdivq_f32(b_float32x4, b_stddev_float32x4);
 
         g_float32x4 = bgr_fp32x4x3.val[1];
         g_float32x4 = vsubq_f32(g_float32x4, g_mean_float32x4);
-        g_float32x4 = vdivq_f32(g_float32x4, g_stddev_float32x4);
 
         r_float32x4 = bgr_fp32x4x3.val[2];
         r_float32x4 = vsubq_f32(r_float32x4, r_mean_float32x4);
+
+#if __aarch64__
+        b_float32x4 = vdivq_f32(b_float32x4, b_stddev_float32x4);
+        g_float32x4 = vdivq_f32(g_float32x4, g_stddev_float32x4);
         r_float32x4 = vdivq_f32(r_float32x4, r_stddev_float32x4);
+#else
+        for (int i = 0; i < 4; i++) {
+            b_float32x4[i] = b_float32x4[i] / (stddev[0] + 1e-6);
+            g_float32x4[i] = g_float32x4[i] / (stddev[1] + 1e-6);
+            r_float32x4[i] = r_float32x4[i] / (stddev[2] + 1e-6);
+        }
+#endif // __aarch64__
 
         bgr_fp32x4x3.val[0] = b_float32x4;
         bgr_fp32x4x3.val[1] = g_float32x4;
@@ -218,7 +261,14 @@ void NormalizeNeon::normalize_neon_chw(float* src, float* dst, int stride, int c
         for (i = 0; i < num_32x4; i++) {
             float32x4_t channel_fp32x4 = vld1q_f32(channel_ofs + i*4);
             channel_fp32x4 = vsubq_f32(channel_fp32x4, channel_mean_float32x4);
+#if __aarch64__
             channel_fp32x4 = vdivq_f32(channel_fp32x4, channel_stddev_float32x4);
+#else
+            for (int i = 0; i < 4; i++) {
+                channel_fp32x4[i] = channel_fp32x4[i] / (stddev[k] + 1e-6);
+            }
+#endif // __aarch64__
+
             vst1q_f32(dst_ofs + i*4, channel_fp32x4);
         }
 

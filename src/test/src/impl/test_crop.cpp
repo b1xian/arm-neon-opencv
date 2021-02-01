@@ -65,6 +65,10 @@ namespace vacv {
             va_cv::crop(src_tensor, vacv_crop_tensor, va_rect);
         }
 
+        if (layout == NCHW) {
+            vacv_crop_tensor = vacv_crop_tensor.change_layout(NHWC);
+        }
+
         float cosine_distance = 0.f;
         if (dtype == INT8) {
             cosine_distance = ImageUtil::compare_image_data((char*)cv_crop_mat.data,
@@ -110,6 +114,14 @@ namespace vacv {
 
     std::vector<double> TestCrop::test_crop_chw_320x180() {
         return test_crop(cv_rect320x180, v_rect320x180, NCHW, INT8);
+    }
+
+    std::vector<double> TestCrop::test_crop_chw_320x180_FP32() {
+        return test_crop(cv_rect320x180, v_rect320x180, NCHW, FP32);
+    }
+
+    std::vector<double> TestCrop::test_crop_chw_640x360() {
+        return test_crop(cv_rect640x360, v_rect640x360, NCHW, INT8);
     }
 
     std::vector<double> TestCrop::test_crop_chw_5x5() {

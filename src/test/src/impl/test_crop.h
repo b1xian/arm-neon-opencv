@@ -30,6 +30,10 @@ namespace vacv {
 
         static std::vector<double> test_crop_chw_320x180();
 
+        static std::vector<double> test_crop_chw_320x180_FP32();
+
+        static std::vector<double> test_crop_chw_640x360();
+
         static std::vector<double> test_crop_chw_5x5();
 
         static std::vector<double> test_crop_chw_5x5_FP32();

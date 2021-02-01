@@ -274,11 +274,11 @@ void Crop::crop_neon_chw_rgb(const vision::Tensor& src, vision::Tensor& dst,
         int r_dst_channel_ofs = dst.w * dst.h* 2;
         for (int i = 0; i < dst.h; i++) {
             int src_row_index = crop_top + i;
-            int src_row_ofs = b_src_channel_ofs + src_row_index * src.w + crop_left;
-            int dst_row_ofs = b_dst_channel_ofs + i * dst.w;
-            int k = 0;
-            for (k = 0; k < crop_row_num8x16; k++) {
-                int crop_ofs = k * count;
+            int src_row_ofs = src_row_index * src.w + crop_left;
+            int dst_row_ofs = i * dst.w;
+            int crop_ofs = 0;
+            for (int k = 0; k < crop_row_num8x16; k++) {
+                crop_ofs = k * count;
                 int b_src_offset = b_src_channel_ofs + src_row_ofs + crop_ofs;
                 int b_dst_offset = b_dst_channel_ofs + dst_row_ofs + crop_ofs;
                 b_int8x16 = vld1q_u8(src_data + b_src_offset);
@@ -296,7 +296,6 @@ void Crop::crop_neon_chw_rgb(const vision::Tensor& src, vision::Tensor& dst,
             }
 
             if (row_remain > 0) {
-                int crop_ofs = k * count;
                 int b_src_offset = b_src_channel_ofs + src_row_ofs + crop_ofs;
                 int b_dst_offset = b_dst_channel_ofs + dst_row_ofs + crop_ofs;
                 int g_src_offset = g_src_channel_ofs + src_row_ofs + crop_ofs;
@@ -314,7 +313,7 @@ void Crop::crop_neon_chw_rgb(const vision::Tensor& src, vision::Tensor& dst,
         dst.create(crop_width, crop_height, src.c, NCHW, FP32);
         float32_t* src_data = (float32_t*)src.data;
         float32_t* dst_data = (float32_t*)dst.data;
-        int count = 16; // 128 / 8
+        int count = 4; // 128 / 32
         float32x4_t b_float32x4;
         float32x4_t g_float32x4;
         float32x4_t r_float32x4;
@@ -329,11 +328,11 @@ void Crop::crop_neon_chw_rgb(const vision::Tensor& src, vision::Tensor& dst,
         int r_dst_channel_ofs = dst.w * dst.h* 2;
         for (int i = 0; i < dst.h; i++) {
             int src_row_index = crop_top + i;
-            int src_row_ofs = b_src_channel_ofs + src_row_index * src.w + crop_left;
-            int dst_row_ofs = b_dst_channel_ofs + i * dst.w;
-            int k = 0;
-            for (k = 0; k < crop_row_num32x4; k++) {
-                int crop_ofs = k * count;
+            int src_row_ofs = src_row_index * src.w + crop_left;
+            int dst_row_ofs = i * dst.w;
+            int crop_ofs = 0;
+            for (int k = 0; k < crop_row_num32x4; k++) {
+                crop_ofs = k * count;
                 int b_src_offset = b_src_channel_ofs + src_row_ofs + crop_ofs;
                 int b_dst_offset = b_dst_channel_ofs + dst_row_ofs + crop_ofs;
                 b_float32x4 = vld1q_f32(src_data + b_src_offset);
@@ -351,7 +350,6 @@ void Crop::crop_neon_chw_rgb(const vision::Tensor& src, vision::Tensor& dst,
             }
 
             if (row_remain > 0) {
-                int crop_ofs = k * count;
                 int b_src_offset = b_src_channel_ofs + src_row_ofs + crop_ofs;
                 int b_dst_offset = b_dst_channel_ofs + dst_row_ofs + crop_ofs;
                 int g_src_offset = g_src_channel_ofs + src_row_ofs + crop_ofs;

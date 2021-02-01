@@ -17,6 +17,10 @@ int main(int argc, char** argv) {
     std::vector<CvProfile::SpeedResult> speed_result;
     std::vector<CvProfile::OutputResult> output_result;
     CvProfile::TestFuncList func_list {
+            {TestCrop::test_crop_hwc_5x5, "test_crop_hwc_5x5"},
+            {TestCrop::test_crop_hwc_5x5_FP32, "test_crop_hwc_5x5_FP32"},
+            {TestCrop::test_crop_chw_5x5, "test_crop_chw_5x5"},
+            {TestCrop::test_crop_chw_5x5_FP32, "test_crop_chw_5x5_FP32"},
             {TestCrop::test_crop320x180, "test_crop320x180"},
             {TestCrop::test_crop640x360, "test_crop640x360"},
             {TestCrop::test_crop1280x720, "test_crop1280x720"},

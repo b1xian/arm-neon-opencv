@@ -1,4 +1,6 @@
 #include "crop.h"
+#include "crop_cuda.h"
+#include "cuda_device.h"
 
 #include <iostream>
 #include <math.h>
@@ -20,6 +22,8 @@ using namespace vision;
 void Crop::crop(const vision::Tensor &src, vision::Tensor &dst, const VRect &rect) {
 #if defined (USE_NEON) and __ARM_NEON
     crop_neon(src, dst, rect);
+#elif defined(USE_CUDA)
+    crop_cuda(src, dst, rect);
 #else
     crop_naive(src, dst, rect);
 #endif // USE_NEON
@@ -37,112 +41,138 @@ void Crop::crop_opencv(const vision::Tensor& src, vision::Tensor& dst, const vis
 #endif
 }
 
-    void Crop::crop_naive_chw(const vision::Tensor& src, vision::Tensor& dst,
+void Crop::crop_naive_chw(const vision::Tensor& src, vision::Tensor& dst,
+                          int crop_left, int crop_top, int crop_width, int crop_height) {
+
+    if (src.dtype == INT8) {
+        dst.create(crop_width, crop_height, src.c, NCHW, INT8);
+        unsigned char* src_data = (unsigned char*)src.data;
+        unsigned char* dst_data = (unsigned char*)dst.data;
+
+        for (int k = 0; k < src.c; k++) {
+            int src_channel_ofs = src.w * src.h * k;
+            int dst_channel_ofs = dst.w * dst.h * k;
+            for (int i = 0; i < dst.h; i++) {
+                int src_row_index = crop_top + i;
+                int src_row_ofs = src_channel_ofs + src_row_index * src.w + crop_left;
+                int dst_row_ofs = dst_channel_ofs + i * dst.w;
+                for (int j = 0; j < dst.w; j++) {
+                    *(dst_data + dst_row_ofs + j) = *(src_data + src_row_ofs + j);
+                }
+            }
+        }
+    } else if (src.dtype == FP32) {
+        dst.create(crop_width, crop_height, src.c, NCHW, FP32);
+        float* src_data = (float*)src.data;
+        float* dst_data = (float*)dst.data;
+
+        for (int k = 0; k < src.c; k++) {
+            int src_channel_ofs = src.w * src.h * k;
+            int dst_channel_ofs = dst.w * dst.h * k;
+            for (int i = 0; i < dst.h; i++) {
+                int src_row_index = crop_top + i;
+                int src_row_ofs = src_channel_ofs + src_row_index * src.w + crop_left;
+                int dst_row_ofs = dst_channel_ofs + i * dst.w;
+                for (int j = 0; j < dst.w; j++) {
+                    *(dst_data + dst_row_ofs + j) = *(src_data + src_row_ofs + j);
+                }
+            }
+        }
+    }
+}
+
+void Crop::crop_naive_hwc_rgb(const vision::Tensor& src, vision::Tensor& dst,
                               int crop_left, int crop_top, int crop_width, int crop_height) {
+    if (src.dtype == INT8) {
+        dst.create(crop_width, crop_height, src.c, NHWC, INT8);
+        unsigned char* src_data = (unsigned char*)src.data;
+        unsigned char* dst_data = (unsigned char*)dst.data;
 
-        if (src.dtype == INT8) {
-            dst.create(crop_width, crop_height, src.c, NCHW, INT8);
-            unsigned char* src_data = (unsigned char*)src.data;
-            unsigned char* dst_data = (unsigned char*)dst.data;
-
-            for (int k = 0; k < src.c; k++) {
-                int src_channel_ofs = src.w * src.h * k;
-                int dst_channel_ofs = dst.w * dst.h * k;
-                for (int i = 0; i < dst.h; i++) {
-                    int src_row_index = crop_top + i;
-                    int src_row_ofs = src_channel_ofs + src_row_index * src.w + crop_left;
-                    int dst_row_ofs = dst_channel_ofs + i * dst.w;
-                    for (int j = 0; j < dst.w; j++) {
-                        *(dst_data + dst_row_ofs + j) = *(src_data + src_row_ofs + j);
-                    }
+        int src_offset = 0;
+        int dst_offset = 0;
+        for (int i = 0; i < dst.h; i++) {
+            int src_row_index = crop_top + i;
+            int src_row_ofs = src_row_index * src.w;
+            int dst_row_ofs = i * dst.w;
+            for (int j = 0; j < dst.w; j++) {
+                src_offset = (src_row_ofs + crop_left + j) * src.c;
+                dst_offset = (dst_row_ofs + j) * dst.c;
+                for (int k = 0; k < src.c; k++) {
+                    *(dst_data + dst_offset + k) = *(src_data + src_offset + k);
                 }
             }
-        } else if (src.dtype == FP32) {
-            dst.create(crop_width, crop_height, src.c, NCHW, FP32);
-            float* src_data = (float*)src.data;
-            float* dst_data = (float*)dst.data;
+        }
+    } else if (src.dtype == FP32) {
+        dst.create(crop_width, crop_height, src.c, NHWC, FP32);
+        float* src_data = (float*)src.data;
+        float* dst_data = (float*)dst.data;
 
-            for (int k = 0; k < src.c; k++) {
-                int src_channel_ofs = src.w * src.h * k;
-                int dst_channel_ofs = dst.w * dst.h * k;
-                for (int i = 0; i < dst.h; i++) {
-                    int src_row_index = crop_top + i;
-                    int src_row_ofs = src_channel_ofs + src_row_index * src.w + crop_left;
-                    int dst_row_ofs = dst_channel_ofs + i * dst.w;
-                    for (int j = 0; j < dst.w; j++) {
-                        *(dst_data + dst_row_ofs + j) = *(src_data + src_row_ofs + j);
-                    }
+        int src_offset = 0;
+        int dst_offset = 0;
+        for (int i = 0; i < dst.h; i++) {
+            int src_row_index = crop_top + i;
+            int src_row_ofs = src_row_index * src.w;
+            int dst_row_ofs = i * dst.w;
+            for (int j = 0; j < dst.w; j++) {
+                src_offset = (src_row_ofs + crop_left + j) * src.c;
+                dst_offset = (dst_row_ofs + j) * dst.c;
+                for (int k = 0; k < src.c; k++) {
+                    *(dst_data + dst_offset + k) = *(src_data + src_offset + k);
                 }
             }
         }
     }
+}
 
-    void Crop::crop_naive_hwc_rgb(const vision::Tensor& src, vision::Tensor& dst,
-                                  int crop_left, int crop_top, int crop_width, int crop_height) {
-        if (src.dtype == INT8) {
-            dst.create(crop_width, crop_height, src.c, NHWC, INT8);
-            unsigned char* src_data = (unsigned char*)src.data;
-            unsigned char* dst_data = (unsigned char*)dst.data;
+void Crop::crop_naive(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
+    int crop_left   = static_cast<int>(rect.left);
+    int crop_top    = static_cast<int>(rect.top);
+    int crop_width  = static_cast<int>(rect.width());
+    int crop_height = static_cast<int>(rect.height());
 
-            int src_offset = 0;
-            int dst_offset = 0;
-            for (int i = 0; i < dst.h; i++) {
-                int src_row_index = crop_top + i;
-                int src_row_ofs = src_row_index * src.w;
-                int dst_row_ofs = i * dst.w;
-                for (int j = 0; j < dst.w; j++) {
-                    src_offset = (src_row_ofs + crop_left + j) * src.c;
-                    dst_offset = (dst_row_ofs + j) * dst.c;
-                    for (int k = 0; k < src.c; k++) {
-                        *(dst_data + dst_offset + k) = *(src_data + src_offset + k);
-                    }
-                }
-            }
-        } else if (src.dtype == FP32) {
-            dst.create(crop_width, crop_height, src.c, NHWC, FP32);
-            float* src_data = (float*)src.data;
-            float* dst_data = (float*)dst.data;
-
-            int src_offset = 0;
-            int dst_offset = 0;
-            for (int i = 0; i < dst.h; i++) {
-                int src_row_index = crop_top + i;
-                int src_row_ofs = src_row_index * src.w;
-                int dst_row_ofs = i * dst.w;
-                for (int j = 0; j < dst.w; j++) {
-                    src_offset = (src_row_ofs + crop_left + j) * src.c;
-                    dst_offset = (dst_row_ofs + j) * dst.c;
-                    for (int k = 0; k < src.c; k++) {
-                        *(dst_data + dst_offset + k) = *(src_data + src_offset + k);
-                    }
-                }
-            }
-        }
-    }
-
-    void Crop::crop_naive(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
-        int crop_left   = static_cast<int>(rect.left);
-        int crop_top    = static_cast<int>(rect.top);
-        int crop_width  = static_cast<int>(rect.width());
-        int crop_height = static_cast<int>(rect.height());
-
-        if (src.dtype == INT8 || src.dtype == FP32) {
-            if (src.layout == NHWC) {
-                crop_naive_hwc_rgb(src, dst, crop_left, crop_top, crop_width, crop_height);
-            } else {
-                crop_naive_chw(src, dst, crop_left, crop_top, crop_width, crop_height);
-            }
+    if (src.dtype == INT8 || src.dtype == FP32) {
+        if (src.layout == NHWC) {
+            crop_naive_hwc_rgb(src, dst, crop_left, crop_top, crop_width, crop_height);
         } else {
-            crop_opencv(src, dst, rect);
+            crop_naive_chw(src, dst, crop_left, crop_top, crop_width, crop_height);
         }
+    } else {
+        crop_opencv(src, dst, rect);
+    }
+}
+
+#if defined (USE_CUDA)
+#endif
+void Crop::crop_cuda(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
+    if (CudaDevice::get_device_count() <= 0 || CudaDevice::set_device(0) != 0) {
+        crop_opencv(src, dst, rect);
     }
 
-    void Crop::crop_sse(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
-        // todo:
+    int crop_left   = static_cast<int>(rect.left);
+    int crop_top    = static_cast<int>(rect.top);
+    int crop_width  = static_cast<int>(rect.width());
+    int crop_height = static_cast<int>(rect.height());
+
+    if (src.c == 1 || src.layout == NCHW) {
+        dst.create(crop_width, crop_height, src.c, NCHW, INT8);
+        CropCuda::crop_cuda_chw_int8((unsigned char*)src.data, src.w, src.h, src.c,
+                                      (unsigned char*)dst.data,
+                                      crop_left, crop_top, crop_width, crop_height);
+
+    } else if (src.c == 3 && src.layout == NHWC) {
+        dst.create(crop_width, crop_height, 3, NHWC, INT8);
+        CropCuda::crop_cuda_rgb_hwc_int8((unsigned char*)src.data, src.w, src.h,
+                                      (unsigned char*)dst.data,
+                                      crop_left, crop_top, crop_width, crop_height);
     }
+}
+
+void Crop::crop_sse(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
+    // todo:
+}
 
 #if defined (USE_NEON) and __ARM_NEON
-    void Crop::crop_neon(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
+void Crop::crop_neon(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect) {
     int crop_left   = static_cast<int>(rect.left);
     int crop_top    = static_cast<int>(rect.top);
     int crop_width  = static_cast<int>(rect.width());

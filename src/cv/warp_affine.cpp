@@ -16,7 +16,7 @@ using namespace vision;
 void WarpAffine::warp_affine( const Tensor& src, Tensor& dst,
                   const Tensor& M, VSize dsize, int flags,
                   int borderMode, const VScalar& borderValue) {
-#ifdef defined (USE_NEON) and __ARM_NEON
+#if defined (USE_NEON) and __ARM_NEON
     warp_affine_neon(src, dst, M, dsize, flags, borderMode, borderValue);
 #else
     warp_affine_naive(src, dst, M, dsize, flags, borderMode, borderValue);

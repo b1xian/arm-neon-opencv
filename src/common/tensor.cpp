@@ -1,7 +1,9 @@
 #include "tensor.h"
 #include "va_allocator.h"
 
+#if defined (__ARM_NEON)
 #include "arm_neon.h"
+#endif
 #include <iostream>
 
 namespace vision {
@@ -179,7 +181,7 @@ void chw_to_hwc(T* in, T* out, int w, int h, int c) {
     }
 }
 
-//#if defined (__ARM_NEON)
+#if defined (__ARM_NEON)
 void hwc_2_chw_neon_u8(const uint8_t *src_data, uint8_t *dst_data, int w, int h, int c) {
     int stride = w * h;
 
@@ -386,7 +388,7 @@ void f32_2_u8_neon(const float* src, uint8_t* dst, int len) {
         }
     }
 }
-//#endif
+#endif
 
 Tensor Tensor::change_layout(DLayout _layout) {
     if (empty()) {

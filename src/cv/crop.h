@@ -30,6 +30,8 @@ private:
 
     static void crop_naive_chw(const vision::Tensor& src, vision::Tensor& dst,
                                int crop_left, int crop_top, int crop_width, int crop_height);
+
+    static void crop_cuda(const vision::Tensor& src, vision::Tensor& dst, const vision::VRect& rect);
 };
 
 } // namespace va_cv

@@ -1,19 +1,32 @@
 #include "va_allocator.h"
 #include <cstdlib>
+#include <iostream>
+
+#if defined (USE_CUDA)
+#include "va_cuda_allocator.cuh"
+#endif
+
 
 namespace vision {
 
-void* VaAllocator::allocate(int len) {
-    if (len <= 0) {
-        return nullptr;
+void VaAllocator::allocate(void** data, int len) {
+    if (len > 0) {
+#if defined (USE_CUDA)
+        VaCudaAllocator::cuda_host_alloc_mapped(data, len);
+#else
+        *data = malloc(len);
+#endif
     }
-
-    return malloc(len);
 }
 
 void VaAllocator::deallocate(void* ptr) {
+
     if (ptr) {
+#if defined (USE_CUDA)
+        VaCudaAllocator::cuda_free_host(ptr);
+#else
         free(ptr);
+#endif
     }
 }
 

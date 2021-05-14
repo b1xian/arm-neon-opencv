@@ -5,7 +5,7 @@ namespace vision {
 
 class VaAllocator {
 public:
-    static void* allocate(int len);
+    static void allocate(void** data, int len);
     static void deallocate(void* ptr);
     static int align_size(int len);
     static int align_size(int len, int size);
